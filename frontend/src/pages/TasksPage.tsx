@@ -162,8 +162,34 @@ const TasksPage: React.FC = () => {
   const quadrant3Tasks = tasks.filter(task => task.urgency && !task.importance && task.status !== 'completed');
   const quadrant4Tasks = tasks.filter(task => !task.urgency && !task.importance && task.status !== 'completed');
 
-  // 按状态过滤任务
-  const filteredTasks = tasks.filter(task => {
+  // 任务优先级排序函数
+  const sortTasksByPriority = (tasks: Task[]) => {
+    return tasks.sort((a, b) => {
+      // 定义优先级权重：紧急重要(4) > 紧急(3) > 重要(2) > 普通(1)
+      const getPriorityWeight = (task: Task) => {
+        if (task.urgency && task.importance) return 4; // 紧急重要
+        if (task.urgency && !task.importance) return 3; // 紧急
+        if (!task.urgency && task.importance) return 2; // 重要
+        return 1; // 普通
+      };
+
+      const weightA = getPriorityWeight(a);
+      const weightB = getPriorityWeight(b);
+      
+      // 按权重降序排列（高优先级在前）
+      if (weightA !== weightB) {
+        return weightB - weightA;
+      }
+      
+      // 如果优先级相同，按创建时间排序（新的在前）
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  };
+
+  // 按状态过滤任务并排序
+  const filteredTasks = sortTasksByPriority(tasks.filter(task => {
     switch (filter) {
       case 'pending':
         return task.status === 'pending';
@@ -175,7 +201,7 @@ const TasksPage: React.FC = () => {
         // 默认显示预计代办和进行中的任务
         return task.status === 'pending' || task.status === 'in-progress';
     }
-  });
+  }));
 
   return (
     <div className="space-y-6">
