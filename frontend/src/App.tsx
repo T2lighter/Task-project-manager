@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import ProfilePage from './pages/ProfilePage';
 import TasksPage from './pages/TasksPage';
 import { useAuthStore } from './store/authStore';
@@ -15,28 +15,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-100">
-        <nav className="bg-white shadow-md">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between h-16">
-              <div className="flex">
-                <div className="flex-shrink-0 flex items-center">
-                  <span className="text-xl font-bold text-gray-800">任务管理器</span>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <nav className="flex space-x-2">
-                  <a href="/" className="px-6 py-2.5 rounded-lg text-base font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 transform hover:scale-105">
-                    个人主页
-                  </a>
-                  <a href="/tasks" className="px-6 py-2.5 rounded-lg text-base font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 transform hover:scale-105">
-                    任务管理
-                  </a>
-                </nav>
-              </div>
-            </div>
-          </div>
-        </nav>
-
+        <Navigation />
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Routes>
             <Route path="/" element={<ProfilePage />} />
@@ -46,6 +25,53 @@ function App() {
         </main>
       </div>
     </Router>
+  );
+}
+
+// 导航组件
+function Navigation() {
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
+  return (
+    <nav className="bg-white shadow-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <div className="flex-shrink-0 flex items-center">
+              <span className="text-xl font-bold text-gray-800">任务管理器</span>
+            </div>
+          </div>
+          <div className="flex items-center">
+            <nav className="flex space-x-2">
+              <Link 
+                to="/" 
+                className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all duration-200 transform hover:scale-105 ${
+                  isActive('/') 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                个人主页
+              </Link>
+              <Link 
+                to="/tasks" 
+                className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all duration-200 transform hover:scale-105 ${
+                  isActive('/tasks') 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                任务管理
+              </Link>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </nav>
   );
 }
 

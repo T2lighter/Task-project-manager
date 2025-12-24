@@ -59,7 +59,6 @@ const ProfilePage: React.FC = () => {
 
   // 获取年度热力图数据（只在页面加载时获取一次）
   useEffect(() => {
-    console.log('ProfilePage: 获取年度热力图数据');
     fetchYearHeatmapData();
   }, [fetchYearHeatmapData]);
 

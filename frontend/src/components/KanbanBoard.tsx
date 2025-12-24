@@ -98,7 +98,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         {title} ({tasks.length})
       </h2>
       
-      <div className="space-y-3 min-h-[100px] max-h-[400px] overflow-y-auto">
+      <div className="space-y-3 min-h-[100px] max-h-[500px] overflow-y-auto">
         {tasks.length === 0 ? (
           <p className="text-gray-500 italic">此列中没有任务</p>
         ) : (

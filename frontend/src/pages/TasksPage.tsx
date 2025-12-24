@@ -60,8 +60,6 @@ const TasksPage: React.FC = () => {
   };
 
   const handleDropTask = (task: Task, newUrgency: boolean, newImportance: boolean) => {
-    console.log('处理任务放置:', task.title, '新紧急状态:', newUrgency, '新重要状态:', newImportance);
-    
     // 验证任务数据完整性
     if (!task || !task.id) {
       console.error('无效的任务数据:', task);
@@ -85,33 +83,20 @@ const TasksPage: React.FC = () => {
         categoryId: taskData.categoryId || undefined
       };
       
-      console.log('正在更新任务:', task.id, '更新数据:', updateData);
-      
       updateTask(task.id, updateData).then(() => {
-        // 显示成功提示（仅控制台，无弹窗）
-        const quadrantNames = {
-          'true-true': '紧急且重要',
-          'false-true': '重要但不紧急', 
-          'true-false': '紧急但不重要',
-          'false-false': '既不紧急也不重要'
-        };
-        const quadrantName = quadrantNames[`${newUrgency}-${newImportance}`];
-        console.log(`任务"${task.title}"已移动到"${quadrantName}"象限`);
+        // 任务移动成功
       }).catch((error) => {
         console.error('移动任务失败:', error);
       }).finally(() => {
         setDraggingTask(null);
       });
     } else {
-      console.log('任务分类未发生变化，无需更新');
       setDraggingTask(null);
     }
   };
 
   // 看板模式的拖拽处理函数
   const handleKanbanDropTask = (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => {
-    console.log('看板模式：处理任务状态变更:', task.title, '新状态:', newStatus);
-    
     // 验证任务数据完整性
     if (!task || !task.id) {
       console.error('无效的任务数据:', task);
@@ -135,23 +120,14 @@ const TasksPage: React.FC = () => {
         categoryId: taskData.categoryId || undefined
       };
       
-      console.log('正在更新任务状态:', task.id, '更新数据:', updateData);
-      
       updateTask(task.id, updateData).then(() => {
-        const statusNames = {
-          'pending': '待办',
-          'in-progress': '进行中',
-          'completed': '已完成'
-        };
-        const statusName = statusNames[newStatus];
-        console.log(`任务"${task.title}"已移动到"${statusName}"列`);
+        // 任务状态更新成功
       }).catch((error) => {
         console.error('更新任务状态失败:', error);
       }).finally(() => {
         setDraggingTask(null);
       });
     } else {
-      console.log('任务状态未发生变化，无需更新');
       setDraggingTask(null);
     }
   };
@@ -443,64 +419,61 @@ const TasksPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 视图内容区域 - 限制高度与左侧对齐 */}
-          <div className="max-h-[600px] overflow-y-auto">
-            {/* 条件渲染视图 */}
-            {viewMode === 'quadrant' ? (
-              // 艾森豪威尔矩阵
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Quadrant
-                  title="紧急且重要"
-                  urgency={true}
-                  importance={true}
-                  tasks={quadrant1Tasks}
-                  onEditTask={handleEditTask}
-                  onDeleteTask={handleDeleteTask}
-                  onDropTask={handleDropTask}
-                  onDragStart={handleDragStartTask}
-                />
-                <Quadrant
-                  title="重要但不紧急"
-                  urgency={false}
-                  importance={true}
-                  tasks={quadrant2Tasks}
-                  onEditTask={handleEditTask}
-                  onDeleteTask={handleDeleteTask}
-                  onDropTask={handleDropTask}
-                  onDragStart={handleDragStartTask}
-                />
-                <Quadrant
-                  title="紧急但不重要"
-                  urgency={true}
-                  importance={false}
-                  tasks={quadrant3Tasks}
-                  onEditTask={handleEditTask}
-                  onDeleteTask={handleDeleteTask}
-                  onDropTask={handleDropTask}
-                  onDragStart={handleDragStartTask}
-                />
-                <Quadrant
-                  title="既不紧急也不重要"
-                  urgency={false}
-                  importance={false}
-                  tasks={quadrant4Tasks}
-                  onEditTask={handleEditTask}
-                  onDeleteTask={handleDeleteTask}
-                  onDropTask={handleDropTask}
-                  onDragStart={handleDragStartTask}
-                />
-              </div>
-            ) : (
-              // 看板视图
-              <KanbanBoard
-                tasks={tasks}
+          {/* 条件渲染视图 */}
+          {viewMode === 'quadrant' ? (
+            // 艾森豪威尔矩阵
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Quadrant
+                title="紧急且重要"
+                urgency={true}
+                importance={true}
+                tasks={quadrant1Tasks}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
-                onDropTask={handleKanbanDropTask}
+                onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
               />
-            )}
-          </div>
+              <Quadrant
+                title="重要但不紧急"
+                urgency={false}
+                importance={true}
+                tasks={quadrant2Tasks}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onDropTask={handleDropTask}
+                onDragStart={handleDragStartTask}
+              />
+              <Quadrant
+                title="紧急但不重要"
+                urgency={true}
+                importance={false}
+                tasks={quadrant3Tasks}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onDropTask={handleDropTask}
+                onDragStart={handleDragStartTask}
+              />
+              <Quadrant
+                title="既不紧急也不重要"
+                urgency={false}
+                importance={false}
+                tasks={quadrant4Tasks}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onDropTask={handleDropTask}
+                onDragStart={handleDragStartTask}
+              />
+            </div>
+          ) : (
+            // 看板视图
+            <KanbanBoard
+              tasks={tasks}
+              onEditTask={handleEditTask}
+              onDeleteTask={handleDeleteTask}
+              onDropTask={handleKanbanDropTask}
+              onDragStart={handleDragStartTask}
+            />
+          )}
         </div>
       </div>
     </div>

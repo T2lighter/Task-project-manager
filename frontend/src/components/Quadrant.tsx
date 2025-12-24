@@ -51,7 +51,6 @@ const Quadrant: React.FC<QuadrantProps> = ({
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setIsDragOver(true);
-    console.log('拖拽悬停在象限:', title, '紧急:', urgency, '重要:', importance);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -71,10 +70,7 @@ const Quadrant: React.FC<QuadrantProps> = ({
     setIsDragOver(false);
     try {
       const taskData = e.dataTransfer.getData('text/plain');
-      console.log('接收到的拖拽数据:', taskData);
       const task = JSON.parse(taskData) as Task;
-      console.log('解析的任务对象:', task);
-      console.log(`目标象限: 紧急=${urgency}, 重要=${importance}`);
       onDropTask?.(task, urgency, importance);
     } catch (error) {
       console.error('拖拽任务失败:', error);
@@ -95,7 +91,7 @@ const Quadrant: React.FC<QuadrantProps> = ({
       <h2 className={`text-lg font-semibold ${colorClasses.text} mb-4`}>
         {title} ({tasks.length})
       </h2>
-      <div className="space-y-3 min-h-[100px] max-h-[300px] overflow-y-auto">
+      <div className="space-y-3 min-h-[100px] max-h-[400px] overflow-y-auto">
         {tasks.length === 0 ? (
           <p className="text-gray-500 italic">此象限中没有任务</p>
         ) : (

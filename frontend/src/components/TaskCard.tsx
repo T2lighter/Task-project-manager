@@ -1,22 +1,30 @@
 import React from 'react';
 import { Task } from '../types';
 import { format } from 'date-fns';
+import { getPriorityConfig } from '../utils/taskUtils';
+import { TASK_STATUS_NAMES } from '../constants';
 
 interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
   onDelete: (taskId: number) => void;
   onDragStart?: (task: Task) => void;
-  compact?: boolean; // 新增：紧凑模式
-  showPriority?: boolean; // 新增：是否显示优先级
+  compact?: boolean;
+  showPriority?: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onDragStart, compact = false, showPriority = true }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ 
+  task, 
+  onEdit, 
+  onDelete, 
+  onDragStart, 
+  compact = false, 
+  showPriority = true 
+}) => {
   const [isDragging, setIsDragging] = React.useState(false);
 
   const handleDragStart = (e: React.DragEvent) => {
     const taskData = JSON.stringify(task);
-    console.log('开始拖拽任务:', taskData);
     e.dataTransfer.setData('text/plain', taskData);
     e.dataTransfer.effectAllowed = 'move';
     setIsDragging(true);
@@ -38,21 +46,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onDragStart
     }
   };
 
-  // 获取优先级标签
-  const getPriorityBadge = () => {
-    if (task.urgency && task.importance) {
-      return { text: '紧急重要', color: 'bg-red-100 text-red-800', icon: '🔥' };
-    }
-    if (!task.urgency && task.importance) {
-      return { text: '重要', color: 'bg-blue-100 text-blue-800', icon: '⭐' };
-    }
-    if (task.urgency && !task.importance) {
-      return { text: '紧急', color: 'bg-yellow-100 text-yellow-800', icon: '⚡' };
-    }
-    return { text: '普通', color: 'bg-gray-100 text-gray-800', icon: '📋' };
-  };
-
-  const priorityBadge = getPriorityBadge();
+  const priorityConfig = getPriorityConfig(task);
 
   return (
     <div 
@@ -76,9 +70,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onDragStart
           <div className={`flex flex-wrap gap-1 ${compact ? 'mt-1' : 'mt-2'}`}>
             {/* 优先级标签 */}
             {showPriority && (
-              <span className={`text-xs px-2 py-1 rounded-full ${priorityBadge.color} flex items-center gap-1`}>
-                <span>{priorityBadge.icon}</span>
-                <span>{priorityBadge.text}</span>
+              <span className={`text-xs px-2 py-1 rounded-full ${priorityConfig.color} flex items-center gap-1`}>
+                <span>{priorityConfig.icon}</span>
+                <span>{priorityConfig.text}</span>
               </span>
             )}
             {task.dueDate && (
@@ -87,8 +81,14 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete, onDragStart
               </span>
             )}
             {!compact && (
-              <span className={`text-xs px-2 py-1 rounded-full ${task.status === 'completed' ? 'bg-green-100 text-green-800' : task.status === 'in-progress' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                {task.status === 'completed' ? '已完成' : task.status === 'in-progress' ? '进行中' : '待办'}
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                task.status === 'completed' 
+                  ? 'bg-green-100 text-green-800' 
+                  : task.status === 'in-progress' 
+                    ? 'bg-blue-100 text-blue-800' 
+                    : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {TASK_STATUS_NAMES[task.status as keyof typeof TASK_STATUS_NAMES]}
               </span>
             )}
             {task.category && (
