@@ -156,11 +156,36 @@ const TasksPage: React.FC = () => {
     }
   };
 
-  // 按象限过滤任务（不包含已完成任务）
-  const quadrant1Tasks = tasks.filter(task => task.urgency && task.importance && task.status !== 'completed');
-  const quadrant2Tasks = tasks.filter(task => !task.urgency && task.importance && task.status !== 'completed');
-  const quadrant3Tasks = tasks.filter(task => task.urgency && !task.importance && task.status !== 'completed');
-  const quadrant4Tasks = tasks.filter(task => !task.urgency && !task.importance && task.status !== 'completed');
+  // 四象限任务状态排序函数
+  const sortTasksByStatus = (tasks: Task[]) => {
+    return tasks.sort((a, b) => {
+      // 定义状态权重：进行中(2) > 代办(1)
+      const getStatusWeight = (task: Task) => {
+        if (task.status === 'in-progress') return 2; // 进行中
+        if (task.status === 'pending') return 1; // 代办
+        return 0; // 其他状态
+      };
+
+      const weightA = getStatusWeight(a);
+      const weightB = getStatusWeight(b);
+      
+      // 按权重降序排列（高权重在前）
+      if (weightA !== weightB) {
+        return weightB - weightA;
+      }
+      
+      // 如果状态相同，按创建时间排序（新的在前）
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  };
+
+  // 按象限过滤任务（不包含已完成任务）并排序
+  const quadrant1Tasks = sortTasksByStatus(tasks.filter(task => task.urgency && task.importance && task.status !== 'completed'));
+  const quadrant2Tasks = sortTasksByStatus(tasks.filter(task => !task.urgency && task.importance && task.status !== 'completed'));
+  const quadrant3Tasks = sortTasksByStatus(tasks.filter(task => task.urgency && !task.importance && task.status !== 'completed'));
+  const quadrant4Tasks = sortTasksByStatus(tasks.filter(task => !task.urgency && !task.importance && task.status !== 'completed'));
 
   // 任务优先级排序函数
   const sortTasksByPriority = (tasks: Task[]) => {
