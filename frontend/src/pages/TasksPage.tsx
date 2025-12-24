@@ -348,7 +348,7 @@ const TasksPage: React.FC = () => {
               {/* 隐藏任务数量span，将添加任务按钮移到这里 */}
               <button
                 onClick={() => setIsFormOpen(true)}
-                className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-base font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
               >
                 添加任务
               </button>
