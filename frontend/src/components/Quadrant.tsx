@@ -95,7 +95,7 @@ const Quadrant: React.FC<QuadrantProps> = ({
       <h2 className={`text-lg font-semibold ${colorClasses.text} mb-4`}>
         {title} ({tasks.length})
       </h2>
-      <div className="space-y-3 min-h-[100px]">
+      <div className="space-y-3 min-h-[100px] max-h-[400px] overflow-y-auto">
         {tasks.length === 0 ? (
           <p className="text-gray-500 italic">此象限中没有任务</p>
         ) : (
