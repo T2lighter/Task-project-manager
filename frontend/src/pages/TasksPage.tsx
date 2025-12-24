@@ -342,7 +342,7 @@ const TasksPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 左侧：任务列表 */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
+          <div className="bg-white rounded-lg shadow p-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-800">任务列表</h2>
               {/* 隐藏任务数量span，将添加任务按钮移到这里 */}
@@ -401,7 +401,7 @@ const TasksPage: React.FC = () => {
             </div>
             
             {/* 任务列表 */}
-            <div className="space-y-3 flex-1 overflow-y-auto">
+            <div className="space-y-3 max-h-[600px] overflow-y-auto">
               {filteredTasks.map(task => (
                 <TaskCard
                   key={task.id}
@@ -417,92 +417,89 @@ const TasksPage: React.FC = () => {
 
         {/* 右侧：视图区域 */}
         <div className="lg:col-span-2">
-          <div className="h-full flex flex-col">
-            {/* 视图切换按钮 */}
-            <div className="flex justify-center mb-6">
-              <div className="bg-gray-50 rounded-xl p-1.5 flex shadow-sm border border-gray-200">
-                <button
-                  onClick={() => setViewMode('quadrant')}
-                  className={`px-6 py-3 rounded-lg text-base font-semibold transition-all duration-200 ${
-                    viewMode === 'quadrant'
-                      ? 'bg-blue-600 text-white shadow-md transform scale-105'
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
-                  }`}
-                >
-                  四象限展示
-                </button>
-                <button
-                  onClick={() => setViewMode('kanban')}
-                  className={`px-6 py-3 rounded-lg text-base font-semibold transition-all duration-200 ${
-                    viewMode === 'kanban'
-                      ? 'bg-blue-600 text-white shadow-md transform scale-105'
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
-                  }`}
-                >
-                  看板展示
-                </button>
-              </div>
+          {/* 视图切换按钮 */}
+          <div className="flex justify-center mb-6">
+            <div className="bg-gray-50 rounded-xl p-1.5 flex shadow-sm border border-gray-200">
+              <button
+                onClick={() => setViewMode('quadrant')}
+                className={`px-6 py-3 rounded-lg text-base font-semibold transition-all duration-200 ${
+                  viewMode === 'quadrant'
+                    ? 'bg-blue-600 text-white shadow-md transform scale-105'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                四象限展示
+              </button>
+              <button
+                onClick={() => setViewMode('kanban')}
+                className={`px-6 py-3 rounded-lg text-base font-semibold transition-all duration-200 ${
+                  viewMode === 'kanban'
+                    ? 'bg-blue-600 text-white shadow-md transform scale-105'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                看板展示
+              </button>
             </div>
+          </div>
 
+          {/* 视图内容区域 - 限制高度与左侧对齐 */}
+          <div className="max-h-[600px] overflow-y-auto">
             {/* 条件渲染视图 */}
-            <div className="flex-1">
-              {viewMode === 'quadrant' ? (
-                // 艾森豪威尔矩阵
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
-                  <Quadrant
-                    title="紧急且重要"
-                    urgency={true}
-                    importance={true}
-                    tasks={quadrant1Tasks}
-                    onEditTask={handleEditTask}
-                    onDeleteTask={handleDeleteTask}
-                    onDropTask={handleDropTask}
-                    onDragStart={handleDragStartTask}
-                  />
-                  <Quadrant
-                    title="重要但不紧急"
-                    urgency={false}
-                    importance={true}
-                    tasks={quadrant2Tasks}
-                    onEditTask={handleEditTask}
-                    onDeleteTask={handleDeleteTask}
-                    onDropTask={handleDropTask}
-                    onDragStart={handleDragStartTask}
-                  />
-                  <Quadrant
-                    title="紧急但不重要"
-                    urgency={true}
-                    importance={false}
-                    tasks={quadrant3Tasks}
-                    onEditTask={handleEditTask}
-                    onDeleteTask={handleDeleteTask}
-                    onDropTask={handleDropTask}
-                    onDragStart={handleDragStartTask}
-                  />
-                  <Quadrant
-                    title="既不紧急也不重要"
-                    urgency={false}
-                    importance={false}
-                    tasks={quadrant4Tasks}
-                    onEditTask={handleEditTask}
-                    onDeleteTask={handleDeleteTask}
-                    onDropTask={handleDropTask}
-                    onDragStart={handleDragStartTask}
-                  />
-                </div>
-              ) : (
-                // 看板视图
-                <div className="h-full">
-                  <KanbanBoard
-                    tasks={tasks}
-                    onEditTask={handleEditTask}
-                    onDeleteTask={handleDeleteTask}
-                    onDropTask={handleKanbanDropTask}
-                    onDragStart={handleDragStartTask}
-                  />
-                </div>
-              )}
-            </div>
+            {viewMode === 'quadrant' ? (
+              // 艾森豪威尔矩阵
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Quadrant
+                  title="紧急且重要"
+                  urgency={true}
+                  importance={true}
+                  tasks={quadrant1Tasks}
+                  onEditTask={handleEditTask}
+                  onDeleteTask={handleDeleteTask}
+                  onDropTask={handleDropTask}
+                  onDragStart={handleDragStartTask}
+                />
+                <Quadrant
+                  title="重要但不紧急"
+                  urgency={false}
+                  importance={true}
+                  tasks={quadrant2Tasks}
+                  onEditTask={handleEditTask}
+                  onDeleteTask={handleDeleteTask}
+                  onDropTask={handleDropTask}
+                  onDragStart={handleDragStartTask}
+                />
+                <Quadrant
+                  title="紧急但不重要"
+                  urgency={true}
+                  importance={false}
+                  tasks={quadrant3Tasks}
+                  onEditTask={handleEditTask}
+                  onDeleteTask={handleDeleteTask}
+                  onDropTask={handleDropTask}
+                  onDragStart={handleDragStartTask}
+                />
+                <Quadrant
+                  title="既不紧急也不重要"
+                  urgency={false}
+                  importance={false}
+                  tasks={quadrant4Tasks}
+                  onEditTask={handleEditTask}
+                  onDeleteTask={handleDeleteTask}
+                  onDropTask={handleDropTask}
+                  onDragStart={handleDragStartTask}
+                />
+              </div>
+            ) : (
+              // 看板视图
+              <KanbanBoard
+                tasks={tasks}
+                onEditTask={handleEditTask}
+                onDeleteTask={handleDeleteTask}
+                onDropTask={handleKanbanDropTask}
+                onDragStart={handleDragStartTask}
+              />
+            )}
           </div>
         </div>
       </div>

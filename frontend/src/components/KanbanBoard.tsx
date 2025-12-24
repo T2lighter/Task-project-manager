@@ -85,7 +85,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
   return (
     <div
-      className={`rounded-lg shadow p-4 border-l-4 h-full flex flex-col drag-transition ${
+      className={`rounded-lg shadow p-4 border-l-4 min-h-32 drag-transition ${
         isDragOver 
           ? 'drop-zone-active' 
           : 'bg-white hover:bg-gray-50'
@@ -98,7 +98,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
         {title} ({tasks.length})
       </h2>
       
-      <div className="space-y-3 flex-1 overflow-y-auto">
+      <div className="space-y-3 min-h-[100px] max-h-[400px] overflow-y-auto">
         {tasks.length === 0 ? (
           <p className="text-gray-500 italic">此列中没有任务</p>
         ) : (
@@ -166,7 +166,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const completedTasks = sortTasksByPriority(tasks.filter(task => task.status === 'completed'));
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <KanbanColumn
         title="待办"
         status="pending"
