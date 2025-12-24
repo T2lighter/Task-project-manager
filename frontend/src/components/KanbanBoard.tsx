@@ -134,10 +134,36 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onDropTask,
   onDragStart
 }) => {
-  // 按状态分类任务
-  const pendingTasks = tasks.filter(task => task.status === 'pending');
-  const inProgressTasks = tasks.filter(task => task.status === 'in-progress');
-  const completedTasks = tasks.filter(task => task.status === 'completed');
+  // 任务优先级排序函数
+  const sortTasksByPriority = (tasks: Task[]) => {
+    return tasks.sort((a, b) => {
+      // 定义优先级权重：紧急重要(4) > 紧急(3) > 重要(2) > 普通(1)
+      const getPriorityWeight = (task: Task) => {
+        if (task.urgency && task.importance) return 4; // 紧急重要
+        if (task.urgency && !task.importance) return 3; // 紧急
+        if (!task.urgency && task.importance) return 2; // 重要
+        return 1; // 普通
+      };
+
+      const weightA = getPriorityWeight(a);
+      const weightB = getPriorityWeight(b);
+      
+      // 按权重降序排列（高优先级在前）
+      if (weightA !== weightB) {
+        return weightB - weightA;
+      }
+      
+      // 如果优先级相同，按创建时间排序（新的在前）
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  };
+
+  // 按状态分类任务并排序
+  const pendingTasks = sortTasksByPriority(tasks.filter(task => task.status === 'pending'));
+  const inProgressTasks = sortTasksByPriority(tasks.filter(task => task.status === 'in-progress'));
+  const completedTasks = sortTasksByPriority(tasks.filter(task => task.status === 'completed'));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
