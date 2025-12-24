@@ -100,6 +100,24 @@ const ProfilePage: React.FC = () => {
     new Date(task.dueDate) <= todayEnd
   ).length;
 
+  // 计算本周任务
+  const startOfWeek = new Date(today);
+  const dayOfWeek = today.getDay();
+  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // 调整为周一开始
+  startOfWeek.setDate(diff);
+  startOfWeek.setHours(0, 0, 0, 0);
+  
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
+  
+  const thisWeekTasks = tasks.filter(task => 
+    task.status !== 'completed' &&
+    task.dueDate && 
+    new Date(task.dueDate) >= startOfWeek && 
+    new Date(task.dueDate) <= endOfWeek
+  ).length;
+
   const completionRate = allTasks > 0 ? ((completedTasks / allTasks) * 100).toFixed(1) : '0';
 
   // 计算四象限数据（使用quadrantStats后端数据）
@@ -188,7 +206,7 @@ const ProfilePage: React.FC = () => {
       </div>
 
       {/* 所有统计卡片 - 一行显示 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
         <StatsCard
           title="总任务数"
           value={allTasks}
@@ -212,6 +230,12 @@ const ProfilePage: React.FC = () => {
           value={dueTodayTasks}
           color="yellow"
           onClick={() => navigate('/tasks', { state: { filter: 'due-today' } })}
+        />
+        <StatsCard
+          title="本周任务"
+          value={thisWeekTasks}
+          color="blue"
+          onClick={() => navigate('/tasks', { state: { filter: 'this-week' } })}
         />
         <StatsCard
           title="已完成"

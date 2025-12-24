@@ -12,7 +12,7 @@ const TasksPage: React.FC = () => {
   const location = useLocation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed' | 'overdue' | 'due-today' | 'this-week'>('all');
   const [draggingTask, setDraggingTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'quadrant' | 'kanban'>('quadrant'); // 新增：视图模式状态
 
@@ -23,8 +23,8 @@ const TasksPage: React.FC = () => {
   // 从location.state中获取筛选条件并应用
   React.useEffect(() => {
     const filterState = location.state?.filter;
-    if (filterState && ['all', 'pending', 'in-progress', 'completed'].includes(filterState)) {
-      setFilter(filterState as 'all' | 'pending' | 'in-progress' | 'completed');
+    if (filterState && ['all', 'pending', 'in-progress', 'completed', 'overdue', 'due-today', 'this-week'].includes(filterState)) {
+      setFilter(filterState as 'all' | 'pending' | 'in-progress' | 'completed' | 'overdue' | 'due-today' | 'this-week');
     }
   }, [location.state]);
 
@@ -215,6 +215,22 @@ const TasksPage: React.FC = () => {
 
   // 按状态过滤任务并排序
   const filteredTasks = sortTasksByPriority(tasks.filter(task => {
+    const now = new Date();
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    
+    // 计算本周的开始和结束时间
+    const startOfWeek = new Date(today);
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // 调整为周一开始
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
     switch (filter) {
       case 'pending':
         return task.status === 'pending';
@@ -222,11 +238,79 @@ const TasksPage: React.FC = () => {
         return task.status === 'in-progress';
       case 'completed':
         return task.status === 'completed';
+      case 'overdue':
+        // 逾期任务：未完成且截止日期已过
+        return task.status !== 'completed' && 
+               task.dueDate && 
+               new Date(task.dueDate) < now;
+      case 'due-today':
+        // 今日到期：未完成且截止日期在今天
+        return task.status !== 'completed' &&
+               task.dueDate && 
+               new Date(task.dueDate) >= todayStart && 
+               new Date(task.dueDate) <= todayEnd;
+      case 'this-week':
+        // 本周任务：未完成且截止日期在本周内
+        return task.status !== 'completed' &&
+               task.dueDate && 
+               new Date(task.dueDate) >= startOfWeek && 
+               new Date(task.dueDate) <= endOfWeek;
       default:
-        // 默认显示预计代办和进行中的任务
+        // 默认显示待办和进行中的任务
         return task.status === 'pending' || task.status === 'in-progress';
     }
   }));
+
+  // 计算各种筛选条件的任务数量
+  const getTaskCount = (filterType: string) => {
+    const now = new Date();
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    
+    const startOfWeek = new Date(today);
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    switch (filterType) {
+      case 'all':
+        return tasks.length;
+      case 'pending':
+        return tasks.filter(t => t.status === 'pending').length;
+      case 'in-progress':
+        return tasks.filter(t => t.status === 'in-progress').length;
+      case 'completed':
+        return tasks.filter(t => t.status === 'completed').length;
+      case 'overdue':
+        return tasks.filter(t => 
+          t.status !== 'completed' && 
+          t.dueDate && 
+          new Date(t.dueDate) < now
+        ).length;
+      case 'due-today':
+        return tasks.filter(t => 
+          t.status !== 'completed' &&
+          t.dueDate && 
+          new Date(t.dueDate) >= todayStart && 
+          new Date(t.dueDate) <= todayEnd
+        ).length;
+      case 'this-week':
+        return tasks.filter(t => 
+          t.status !== 'completed' &&
+          t.dueDate && 
+          new Date(t.dueDate) >= startOfWeek && 
+          new Date(t.dueDate) <= endOfWeek
+        ).length;
+      default:
+        return 0;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -276,25 +360,43 @@ const TasksPage: React.FC = () => {
                 onClick={() => setFilter('all')}
                 className={`px-3 py-1 rounded-full text-sm ${filter === 'all' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                全部任务 ({tasks.length})
+                全部任务 ({getTaskCount('all')})
               </button>
               <button
                 onClick={() => setFilter('pending')}
                 className={`px-3 py-1 rounded-full text-sm ${filter === 'pending' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                待办 ({tasks.filter(t => t.status === 'pending').length})
+                待办 ({getTaskCount('pending')})
               </button>
               <button
                 onClick={() => setFilter('in-progress')}
                 className={`px-3 py-1 rounded-full text-sm ${filter === 'in-progress' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                进行中 ({tasks.filter(t => t.status === 'in-progress').length})
+                进行中 ({getTaskCount('in-progress')})
               </button>
               <button
                 onClick={() => setFilter('completed')}
                 className={`px-3 py-1 rounded-full text-sm ${filter === 'completed' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                已完成 ({tasks.filter(t => t.status === 'completed').length})
+                已完成 ({getTaskCount('completed')})
+              </button>
+              <button
+                onClick={() => setFilter('overdue')}
+                className={`px-3 py-1 rounded-full text-sm ${filter === 'overdue' ? 'bg-red-100 text-red-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                逾期任务 ({getTaskCount('overdue')})
+              </button>
+              <button
+                onClick={() => setFilter('due-today')}
+                className={`px-3 py-1 rounded-full text-sm ${filter === 'due-today' ? 'bg-yellow-100 text-yellow-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                今日到期 ({getTaskCount('due-today')})
+              </button>
+              <button
+                onClick={() => setFilter('this-week')}
+                className={`px-3 py-1 rounded-full text-sm ${filter === 'this-week' ? 'bg-blue-100 text-blue-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                本周任务 ({getTaskCount('this-week')})
               </button>
             </div>
             
