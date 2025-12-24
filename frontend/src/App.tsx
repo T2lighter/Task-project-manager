@@ -24,11 +24,11 @@ function App() {
                 </div>
               </div>
               <div className="flex items-center">
-                <nav className="flex space-x-4">
-                  <a href="/" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
+                <nav className="flex space-x-2">
+                  <a href="/" className="px-6 py-2.5 rounded-lg text-base font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 transform hover:scale-105">
                     个人主页
                   </a>
-                  <a href="/tasks" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100">
+                  <a href="/tasks" className="px-6 py-2.5 rounded-lg text-base font-semibold text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 transform hover:scale-105">
                     任务管理
                   </a>
                 </nav>
@@ -129,7 +129,7 @@ function LoginRegisterForm() {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-base font-semibold rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
             >
               {isLogin ? '登录' : '注册'}
             </button>
@@ -138,7 +138,7 @@ function LoginRegisterForm() {
         <div className="text-center">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="font-medium text-indigo-600 hover:text-indigo-500"
+            className="font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200"
           >
             {isLogin ? '还没有账号？注册' : '已有账号？登录'}
           </button>

@@ -1,0 +1,313 @@
+import { PrismaClient } from '@prisma/client';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, eachDayOfInterval } from 'date-fns';
+
+const prisma = new PrismaClient();
+
+export interface TaskStats {
+  total: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  overdue: number;
+  dueToday: number;
+  completionRate: number;
+  overdueRate: number;
+}
+
+export interface QuadrantStats {
+  urgentImportant: number;
+  importantNotUrgent: number;
+  urgentNotImportant: number;
+  neitherUrgentNorImportant: number;
+}
+
+export interface TimeSeriesData {
+  date: string;
+  completed: number;
+  created: number;
+}
+
+export interface CategoryStats {
+  categoryId: number;
+  categoryName: string;
+  total: number;
+  completed: number;
+  pending: number;
+  inProgress: number;
+  completionRate: number;
+}
+
+export const getTaskStats = async (userId: number, period: 'day' | 'week' | 'month' = 'month'): Promise<TaskStats> => {
+  try {
+    const now = new Date();
+    
+    // 获取所有任务用于基础统计
+    const allTasks = await prisma.task.findMany({
+      where: { userId }
+    });
+
+    const total = allTasks.length;
+    const completed = allTasks.filter(task => task.status === 'completed').length;
+    const inProgress = allTasks.filter(task => task.status === 'in-progress').length;
+    const pending = allTasks.filter(task => task.status === 'pending').length;
+
+    // 计算逾期任务（所有未完成且截止日期已过的任务）
+    const overdue = allTasks.filter(task => 
+      task.status !== 'completed' && 
+      task.dueDate && 
+      new Date(task.dueDate) < now
+    ).length;
+
+    // 计算今日到期任务
+    const todayStart = startOfDay(now);
+    const todayEnd = endOfDay(now);
+    const dueToday = allTasks.filter(task => 
+      task.status !== 'completed' &&
+      task.dueDate && 
+      new Date(task.dueDate) >= todayStart && 
+      new Date(task.dueDate) <= todayEnd
+    ).length;
+
+    const completionRate = total > 0 ? (completed / total) * 100 : 0;
+    const overdueRate = total > 0 ? (overdue / total) * 100 : 0;
+
+    return {
+      total,
+      completed,
+      inProgress,
+      pending,
+      overdue,
+      dueToday,
+      completionRate,
+      overdueRate
+    };
+  } catch (error) {
+    console.error('获取任务统计时出错:', error);
+    throw error;
+  }
+};
+
+export const getQuadrantStats = async (userId: number, period: 'day' | 'week' | 'month' = 'month'): Promise<QuadrantStats> => {
+  try {
+    console.log(`获取用户 ${userId} 的四象限统计数据（排除已完成任务）`);
+    
+    // 只获取未完成的任务（排除 completed 状态）
+    const tasks = await prisma.task.findMany({
+      where: { 
+        userId,
+        status: {
+          not: 'completed'
+        }
+      }
+    });
+
+    console.log(`找到 ${tasks.length} 个未完成任务`);
+    
+    const urgentImportant = tasks.filter(task => task.urgency === true && task.importance === true).length;
+    const importantNotUrgent = tasks.filter(task => task.urgency === false && task.importance === true).length;
+    const urgentNotImportant = tasks.filter(task => task.urgency === true && task.importance === false).length;
+    const neitherUrgentNorImportant = tasks.filter(task => task.urgency === false && task.importance === false).length;
+
+    const quadrantStats = {
+      urgentImportant,
+      importantNotUrgent,
+      urgentNotImportant,
+      neitherUrgentNorImportant,
+    };
+
+    console.log('四象限统计结果（未完成任务）:', quadrantStats);
+
+    return quadrantStats;
+  } catch (error) {
+    console.error('获取四象限统计时出错:', error);
+    throw error;
+  }
+};
+
+export const getTimeSeriesData = async (
+  userId: number, 
+  period: 'day' | 'week' | 'month' = 'day',
+  targetDate: Date = new Date()
+): Promise<TimeSeriesData[]> => {
+  const result: TimeSeriesData[] = [];
+  
+  try {
+    // 简化实现：直接获取任务数据，在内存中处理
+    const tasks = await prisma.task.findMany({
+      where: { userId },
+      select: {
+        createdAt: true,
+        updatedAt: true,
+        status: true
+      }
+    });
+    
+    // 根据时间周期生成数据点
+    let rangeStart: Date;
+    let rangeEnd: Date;
+    
+    switch (period) {
+      case 'day':
+        rangeStart = startOfDay(targetDate);
+        rangeEnd = endOfDay(targetDate);
+        break;
+      case 'week':
+        rangeStart = startOfWeek(targetDate, { weekStartsOn: 1 });
+        rangeEnd = endOfWeek(targetDate, { weekStartsOn: 1 });
+        break;
+      case 'month':
+        rangeStart = startOfMonth(targetDate);
+        rangeEnd = endOfMonth(targetDate);
+        break;
+    }
+    
+    const allDays = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
+    
+    allDays.forEach(date => {
+      const dayStart = startOfDay(date);
+      const dayEnd = endOfDay(date);
+      
+      const created = tasks.filter(task => {
+        const taskDate = task.createdAt;
+        return taskDate >= dayStart && taskDate <= dayEnd;
+      }).length;
+      
+      const completed = tasks.filter(task => {
+        const taskDate = task.updatedAt;
+        return task.status === 'completed' && taskDate >= dayStart && taskDate <= dayEnd;
+      }).length;
+      
+      result.push({
+        date: format(date, 'yyyy-MM-dd'),
+        created,
+        completed
+      });
+    });
+    
+  } catch (error) {
+    console.error('查询时间序列数据时出错:', error);
+    return [];
+  }
+  
+  return result;
+};
+
+// 获取年度热力图数据（高性能实现）
+export const getYearHeatmapData = async (
+  userId: number, 
+  year: number = new Date().getFullYear()
+): Promise<TimeSeriesData[]> => {
+  try {
+    console.log(`获取用户 ${userId} 的 ${year} 年度热力图数据`);
+    
+    // 直接获取用户的所有任务，避免复杂的SQL日期函数
+    const allTasks = await prisma.task.findMany({
+      where: { userId },
+      select: {
+        createdAt: true,
+        updatedAt: true,
+        status: true
+      }
+    });
+    
+    console.log(`获取到用户 ${userId} 的 ${allTasks.length} 个任务`);
+    
+    if (allTasks.length > 0) {
+      console.log('任务样本:', allTasks.slice(0, 3).map(t => ({
+        status: t.status,
+        createdAt: t.createdAt.toISOString(),
+        updatedAt: t.updatedAt.toISOString()
+      })));
+    }
+    
+    // 创建高效的Map索引
+    const createdMap = new Map<string, number>();
+    const completedMap = new Map<string, number>();
+    
+    // 在应用层进行日期过滤和聚合
+    allTasks.forEach(task => {
+      // 处理创建任务统计
+      const createdYear = task.createdAt.getFullYear();
+      if (createdYear === year) {
+        const createdDate = format(task.createdAt, 'yyyy-MM-dd');
+        createdMap.set(createdDate, (createdMap.get(createdDate) || 0) + 1);
+      }
+      
+      // 处理完成任务统计
+      if (task.status === 'completed') {
+        const completedYear = task.updatedAt.getFullYear();
+        if (completedYear === year) {
+          const completedDate = format(task.updatedAt, 'yyyy-MM-dd');
+          completedMap.set(completedDate, (completedMap.get(completedDate) || 0) + 1);
+        }
+      }
+    });
+    
+    console.log(`${year} 年统计 - 创建任务: ${createdMap.size} 天有数据, 完成任务: ${completedMap.size} 天有数据`);
+    
+    // 显示有数据的日期样本
+    if (createdMap.size > 0) {
+      const createdDates = Array.from(createdMap.entries()).slice(0, 3);
+      console.log('创建任务日期样本:', createdDates);
+    }
+    if (completedMap.size > 0) {
+      const completedDates = Array.from(completedMap.entries()).slice(0, 3);
+      console.log('完成任务日期样本:', completedDates);
+    }
+    
+    // 生成年度所有日期（365/366天）
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31);
+    const allDays = eachDayOfInterval({ start: yearStart, end: yearEnd });
+    
+    // 快速生成结果数组
+    const result: TimeSeriesData[] = allDays.map(date => {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      return {
+        date: dateStr,
+        created: createdMap.get(dateStr) || 0,
+        completed: completedMap.get(dateStr) || 0
+      };
+    });
+    
+    // 统计信息
+    const totalCreated = Array.from(createdMap.values()).reduce((sum, count) => sum + count, 0);
+    const totalCompleted = Array.from(completedMap.values()).reduce((sum, count) => sum + count, 0);
+    const activeDays = result.filter(item => item.created > 0 || item.completed > 0).length;
+    
+    console.log(`年度统计 - 总创建: ${totalCreated}, 总完成: ${totalCompleted}, 活跃天数: ${activeDays}/${result.length}`);
+    
+    return result;
+    
+  } catch (error) {
+    console.error('获取年度热力图数据失败:', error);
+    return [];
+  }
+};
+
+export const getCategoryStats = async (userId: number, period: 'day' | 'week' | 'month' = 'month'): Promise<CategoryStats[]> => {
+  const categories = await prisma.category.findMany({
+    where: { userId },
+    include: {
+      tasks: true
+    }
+  });
+
+  return categories.map(category => {
+    const total = category.tasks.length;
+    const completed = category.tasks.filter(task => task.status === 'completed').length;
+    const pending = category.tasks.filter(task => task.status === 'pending').length;
+    const inProgress = category.tasks.filter(task => task.status === 'in-progress').length;
+    const completionRate = total > 0 ? (completed / total) * 100 : 0;
+
+    return {
+      categoryId: category.id,
+      categoryName: category.name,
+      total,
+      completed,
+      pending,
+      inProgress,
+      completionRate
+    };
+  }).filter(stat => stat.total > 0);
+};

@@ -16,3 +16,62 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* 拖拽动画 */
+@keyframes drag-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.drag-active {
+  animation: drag-pulse 0.3s ease-in-out;
+}
+
+/* 拖拽时的视觉反馈 */
+.task-card-dragging {
+  opacity: 0.7;
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* 放置区域高亮 */
+.drop-zone-active {
+  background-color: #f0f9ff !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* 平滑过渡 */
+.drag-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 拖拽时的鼠标样式 */
+[draggable] {
+  cursor: grab;
+}
+
+[draggable]:active {
+  cursor: grabbing;
+}
+
+/* 拖拽时的脉冲效果 */
+@keyframes drag-pulse-effect {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.drag-pulse-active {
+  animation: drag-pulse-effect 1s infinite;
+}

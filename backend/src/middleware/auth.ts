@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+  const authHeader = req.header('Authorization');
+  const token = authHeader?.replace('Bearer ', '');
   
   if (!token) {
     return res.status(401).json({ message: '未提供认证令牌' });

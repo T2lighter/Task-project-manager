@@ -24,10 +24,17 @@ export const useTaskStore = create<TaskState>((set) => ({
   },
   
   updateTask: async (taskId, task) => {
-    const response = await api.put(`/tasks/${taskId}`, task);
-    set((state) => ({
-      tasks: state.tasks.map((t) => (t.id === taskId ? response.data : t))
-    }));
+    try {
+      console.log('更新任务:', taskId, task);
+      const response = await api.put(`/tasks/${taskId}`, task);
+      console.log('更新响应:', response.data);
+      set((state) => ({
+        tasks: state.tasks.map((t) => (t.id === taskId ? response.data : t))
+      }));
+    } catch (error) {
+      console.error('更新任务失败:', error);
+      throw error;
+    }
   },
   
   deleteTask: async (taskId) => {
