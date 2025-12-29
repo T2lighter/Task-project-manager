@@ -4,17 +4,24 @@ import Quadrant from '../components/Quadrant';
 import KanbanBoard from '../components/KanbanBoard';
 import TaskForm from '../components/TaskForm';
 import TaskCard from '../components/TaskCard';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useTaskStore } from '../store/taskStore';
 import { Task } from '../types';
 
 const TasksPage: React.FC = () => {
-  const { tasks, fetchTasks, createTask, updateTask, deleteTask } = useTaskStore();
+  const { tasks, fetchTasks, createTask, updateTask, deleteTask, createSubtask } = useTaskStore();
   const location = useLocation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed' | 'overdue' | 'due-today' | 'this-week'>('all');
   const [draggingTask, setDraggingTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'quadrant' | 'kanban'>('quadrant'); // 新增：视图模式状态
+  const [searchQuery, setSearchQuery] = useState(''); // 新增：搜索查询状态
+  
+  // 新增：控制删除确认对话框的状态
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
 
   React.useEffect(() => {
     fetchTasks();
@@ -27,6 +34,29 @@ const TasksPage: React.FC = () => {
       setFilter(filterState as 'all' | 'pending' | 'in-progress' | 'completed' | 'overdue' | 'due-today' | 'this-week');
     }
   }, [location.state]);
+
+  // 键盘快捷键：Ctrl+F 或 Cmd+F 聚焦搜索框
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+        event.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="搜索任务"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+      }
+      // ESC 键清除搜索
+      if (event.key === 'Escape' && searchQuery) {
+        setSearchQuery('');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [searchQuery]);
 
   const handleCreateTask = (task: Omit<Task, 'id' | 'userId'>) => {
     createTask(task);
@@ -46,8 +76,45 @@ const TasksPage: React.FC = () => {
     }
   };
 
-  const handleDeleteTask = (taskId: number) => {
-    deleteTask(taskId);
+  // 新增：处理创建子任务
+  const handleCreateSubtask = async (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => {
+    try {
+      await createSubtask(parentTaskId, subtaskData);
+      // 刷新任务列表以获取最新的子任务数据
+      await fetchTasks();
+    } catch (error) {
+      console.error('创建子任务失败:', error);
+      alert('创建子任务失败，请重试');
+    }
+  };
+
+  // 新增：处理单个任务删除确认
+  const handleDeleteTaskWithConfirm = (task: Task) => {
+    setTaskToDelete(task);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDeleteTask = () => {
+    if (taskToDelete) {
+      deleteTask(taskToDelete.id);
+      setTaskToDelete(null);
+    }
+  };
+
+  const handleCancelDeleteTask = () => {
+    setShowDeleteConfirm(false);
+    setTaskToDelete(null);
+  };
+
+
+
+  // 处理从表单中删除任务
+  const handleDeleteTaskFromForm = () => {
+    if (editingTask) {
+      deleteTask(editingTask.id);
+      setEditingTask(null);
+      setIsFormOpen(false);
+    }
   };
 
   const handleCloseForm = () => {
@@ -157,11 +224,67 @@ const TasksPage: React.FC = () => {
     });
   };
 
-  // 按象限过滤任务（不包含已完成任务）并排序
-  const quadrant1Tasks = sortTasksByStatus(tasks.filter(task => task.urgency && task.importance && task.status !== 'completed'));
-  const quadrant2Tasks = sortTasksByStatus(tasks.filter(task => !task.urgency && task.importance && task.status !== 'completed'));
-  const quadrant3Tasks = sortTasksByStatus(tasks.filter(task => task.urgency && !task.importance && task.status !== 'completed'));
-  const quadrant4Tasks = sortTasksByStatus(tasks.filter(task => !task.urgency && !task.importance && task.status !== 'completed'));
+  // 搜索过滤函数
+  const filterTasksBySearch = (tasks: Task[], query: string) => {
+    if (!query.trim()) return tasks;
+    
+    const searchTerm = query.toLowerCase().trim();
+    return tasks.filter(task => {
+      // 搜索任务标题
+      const titleMatch = task.title.toLowerCase().includes(searchTerm);
+      
+      // 搜索任务描述
+      const descriptionMatch = task.description?.toLowerCase().includes(searchTerm) || false;
+      
+      // 搜索分类名称
+      const categoryMatch = task.category?.name.toLowerCase().includes(searchTerm) || false;
+      
+      // 搜索项目名称
+      const projectMatch = task.project?.name.toLowerCase().includes(searchTerm) || false;
+      
+      // 搜索状态（中文）
+      const statusMatch = (() => {
+        const statusNames = {
+          'pending': '待办',
+          'in-progress': '进行中',
+          'completed': '已完成'
+        };
+        const statusName = statusNames[task.status as keyof typeof statusNames];
+        return statusName?.toLowerCase().includes(searchTerm) || false;
+      })();
+      
+      // 搜索优先级（中文）
+      const priorityMatch = (() => {
+        let priorityName = '';
+        if (task.urgency && task.importance) priorityName = '紧急重要';
+        else if (!task.urgency && task.importance) priorityName = '重要';
+        else if (task.urgency && !task.importance) priorityName = '紧急';
+        else priorityName = '普通';
+        
+        return priorityName.toLowerCase().includes(searchTerm);
+      })();
+      
+      return titleMatch || descriptionMatch || categoryMatch || projectMatch || statusMatch || priorityMatch;
+    });
+  };
+
+  // 按象限过滤任务（不包含已完成任务和子任务）并排序，然后应用搜索
+  const quadrant1Tasks = filterTasksBySearch(
+    sortTasksByStatus(tasks.filter(task => task.urgency && task.importance && task.status !== 'completed' && !task.parentTaskId)),
+    searchQuery
+  );
+  const quadrant2Tasks = filterTasksBySearch(
+    sortTasksByStatus(tasks.filter(task => !task.urgency && task.importance && task.status !== 'completed' && !task.parentTaskId)),
+    searchQuery
+  );
+  const quadrant3Tasks = filterTasksBySearch(
+    sortTasksByStatus(tasks.filter(task => task.urgency && !task.importance && task.status !== 'completed' && !task.parentTaskId)),
+    searchQuery
+  );
+  const quadrant4Tasks = filterTasksBySearch(
+    sortTasksByStatus(tasks.filter(task => !task.urgency && !task.importance && task.status !== 'completed' && !task.parentTaskId)),
+    searchQuery
+  );
 
   // 任务优先级排序函数
   const sortTasksByPriority = (tasks: Task[]) => {
@@ -189,56 +312,63 @@ const TasksPage: React.FC = () => {
     });
   };
 
-  // 按状态过滤任务并排序
-  const filteredTasks = sortTasksByPriority(tasks.filter(task => {
-    const now = new Date();
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-    
-    // 计算本周的开始和结束时间
-    const startOfWeek = new Date(today);
-    const dayOfWeek = today.getDay();
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // 调整为周一开始
-    startOfWeek.setDate(diff);
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+  // 按状态过滤任务并排序（排除子任务），然后应用搜索
+  const filteredTasks = filterTasksBySearch(
+    sortTasksByPriority(tasks.filter(task => {
+      // 首先排除子任务
+      if (task.parentTaskId) return false;
+      
+      const now = new Date();
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+      
+      // 计算本周的开始和结束时间
+      const startOfWeek = new Date(today);
+      const dayOfWeek = today.getDay();
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // 调整为周一开始
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
 
-    switch (filter) {
-      case 'pending':
-        return task.status === 'pending';
-      case 'in-progress':
-        return task.status === 'in-progress';
-      case 'completed':
-        return task.status === 'completed';
-      case 'overdue':
-        // 逾期任务：未完成且截止日期已过
-        return task.status !== 'completed' && 
-               task.dueDate && 
-               new Date(task.dueDate) < now;
-      case 'due-today':
-        // 今日到期：未完成且截止日期在今天
-        return task.status !== 'completed' &&
-               task.dueDate && 
-               new Date(task.dueDate) >= todayStart && 
-               new Date(task.dueDate) <= todayEnd;
-      case 'this-week':
-        // 本周任务：未完成且截止日期在本周内
-        return task.status !== 'completed' &&
-               task.dueDate && 
-               new Date(task.dueDate) >= startOfWeek && 
-               new Date(task.dueDate) <= endOfWeek;
-      default:
-        // 默认显示待办和进行中的任务
-        return task.status === 'pending' || task.status === 'in-progress';
-    }
-  }));
+      switch (filter) {
+        case 'pending':
+          return task.status === 'pending';
+        case 'in-progress':
+          return task.status === 'in-progress';
+        case 'completed':
+          return task.status === 'completed';
+        case 'overdue':
+          // 逾期任务：未完成且截止日期已过
+          return task.status !== 'completed' && 
+                 task.dueDate && 
+                 new Date(task.dueDate) < now;
+        case 'due-today':
+          // 今日到期：未完成且截止日期在今天
+          return task.status !== 'completed' &&
+                 task.dueDate && 
+                 new Date(task.dueDate) >= todayStart && 
+                 new Date(task.dueDate) <= todayEnd;
+        case 'this-week':
+          // 本周任务：未完成且截止日期在本周内
+          return task.status !== 'completed' &&
+                 task.dueDate && 
+                 new Date(task.dueDate) >= startOfWeek && 
+                 new Date(task.dueDate) <= endOfWeek;
+        default:
+          // 默认显示待办和进行中的任务
+          return task.status === 'pending' || task.status === 'in-progress';
+      }
+    })),
+    searchQuery
+  );
 
-  // 计算各种筛选条件的任务数量
+  // 计算各种筛选条件的任务数量（排除子任务）
   const getTaskCount = (filterType: string) => {
+    const mainTasks = tasks.filter(t => !t.parentTaskId); // 只计算主任务
     const now = new Date();
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -256,28 +386,28 @@ const TasksPage: React.FC = () => {
 
     switch (filterType) {
       case 'all':
-        return tasks.length;
+        return mainTasks.length;
       case 'pending':
-        return tasks.filter(t => t.status === 'pending').length;
+        return mainTasks.filter(t => t.status === 'pending').length;
       case 'in-progress':
-        return tasks.filter(t => t.status === 'in-progress').length;
+        return mainTasks.filter(t => t.status === 'in-progress').length;
       case 'completed':
-        return tasks.filter(t => t.status === 'completed').length;
+        return mainTasks.filter(t => t.status === 'completed').length;
       case 'overdue':
-        return tasks.filter(t => 
+        return mainTasks.filter(t => 
           t.status !== 'completed' && 
           t.dueDate && 
           new Date(t.dueDate) < now
         ).length;
       case 'due-today':
-        return tasks.filter(t => 
+        return mainTasks.filter(t => 
           t.status !== 'completed' &&
           t.dueDate && 
           new Date(t.dueDate) >= todayStart && 
           new Date(t.dueDate) <= todayEnd
         ).length;
       case 'this-week':
-        return tasks.filter(t => 
+        return mainTasks.filter(t => 
           t.status !== 'completed' &&
           t.dueDate && 
           new Date(t.dueDate) >= startOfWeek && 
@@ -289,7 +419,7 @@ const TasksPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* 隐藏原有的h1和span，将按钮移到适当位置 */}
       <div className="flex justify-between items-center">
         {/* 隐藏h1 */}
@@ -305,88 +435,151 @@ const TasksPage: React.FC = () => {
         </div>
       )}
 
-      {/* 任务表单 */}
-      {isFormOpen && (
-        <TaskForm
-          task={editingTask}
-          onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
-          onClose={handleCloseForm}
-        />
-      )}
+      {/* 任务表单弹窗 */}
+      <TaskForm
+        task={editingTask}
+        onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
+        onClose={handleCloseForm}
+        onDelete={editingTask ? handleDeleteTaskFromForm : undefined}
+        isOpen={isFormOpen}
+        asModal={true}
+      />
 
       {/* 左右布局 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* 左侧：任务列表 */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">任务列表</h2>
-              {/* 隐藏任务数量span，将添加任务按钮移到这里 */}
-              <button
-                onClick={() => setIsFormOpen(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-              >
-                添加任务
-              </button>
+          <div className="bg-white rounded-lg shadow p-3">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-semibold text-gray-800">任务列表</h2>
+              <div className="flex gap-2">
+                {/* 添加任务按钮 */}
+                <button
+                  onClick={() => setIsFormOpen(true)}
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                >
+                  添加任务
+                </button>
+              </div>
+            </div>
+            
+            {/* 搜索框 */}
+            <div className="mb-3">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="搜索任务标题、描述、分类、项目... (Ctrl+F)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-50 rounded-r-lg"
+                    title="清除搜索 (ESC)"
+                  >
+                    <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {searchQuery && (
+                <div className="mt-1 flex items-center justify-between text-xs">
+                  <span className="text-gray-500">
+                    找到 {filteredTasks.length} 个匹配的任务
+                  </span>
+                  <span className="text-gray-400">
+                    按 ESC 清除搜索
+                  </span>
+                </div>
+              )}
             </div>
             
             {/* 筛选按钮 */}
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-wrap gap-1 mb-3">
               <button
                 onClick={() => setFilter('all')}
-                className={`px-3 py-1 rounded-full text-sm ${filter === 'all' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-2 py-1 rounded-full text-xs ${filter === 'all' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                全部任务 ({getTaskCount('all')})
+                全部 ({getTaskCount('all')})
               </button>
               <button
                 onClick={() => setFilter('pending')}
-                className={`px-3 py-1 rounded-full text-sm ${filter === 'pending' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-2 py-1 rounded-full text-xs ${filter === 'pending' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
                 待办 ({getTaskCount('pending')})
               </button>
               <button
                 onClick={() => setFilter('in-progress')}
-                className={`px-3 py-1 rounded-full text-sm ${filter === 'in-progress' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-2 py-1 rounded-full text-xs ${filter === 'in-progress' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
                 进行中 ({getTaskCount('in-progress')})
               </button>
               <button
                 onClick={() => setFilter('completed')}
-                className={`px-3 py-1 rounded-full text-sm ${filter === 'completed' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-2 py-1 rounded-full text-xs ${filter === 'completed' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
                 已完成 ({getTaskCount('completed')})
               </button>
               <button
                 onClick={() => setFilter('overdue')}
-                className={`px-3 py-1 rounded-full text-sm ${filter === 'overdue' ? 'bg-red-100 text-red-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-2 py-1 rounded-full text-xs ${filter === 'overdue' ? 'bg-red-100 text-red-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                逾期任务 ({getTaskCount('overdue')})
+                逾期 ({getTaskCount('overdue')})
               </button>
               <button
                 onClick={() => setFilter('due-today')}
-                className={`px-3 py-1 rounded-full text-sm ${filter === 'due-today' ? 'bg-yellow-100 text-yellow-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-2 py-1 rounded-full text-xs ${filter === 'due-today' ? 'bg-yellow-100 text-yellow-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                今日到期 ({getTaskCount('due-today')})
+                今日 ({getTaskCount('due-today')})
               </button>
               <button
                 onClick={() => setFilter('this-week')}
-                className={`px-3 py-1 rounded-full text-sm ${filter === 'this-week' ? 'bg-blue-100 text-blue-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={`px-2 py-1 rounded-full text-xs ${filter === 'this-week' ? 'bg-blue-100 text-blue-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                本周任务 ({getTaskCount('this-week')})
+                本周 ({getTaskCount('this-week')})
               </button>
             </div>
             
             {/* 任务列表 */}
-            <div className="space-y-3 max-h-[600px] overflow-y-auto">
-              {filteredTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onEdit={handleEditTask}
-                  onDelete={handleDeleteTask}
-                  onDragStart={handleDragStartTask}
-                />
-              ))}
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {filteredTasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-4xl mb-4">
+                    {searchQuery ? '🔍' : '📝'}
+                  </div>
+                  <p className="text-gray-600">
+                    {searchQuery ? `没有找到包含"${searchQuery}"的任务` : '暂无任务'}
+                  </p>
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      清除搜索条件
+                    </button>
+                  )}
+                </div>
+              ) : (
+                filteredTasks.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTaskWithConfirm}
+                    onDragStart={handleDragStartTask}
+                    showSubtasks={true} // 启用子任务显示
+                    onCreateSubtask={handleCreateSubtask} // 传递子任务创建函数
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -394,11 +587,11 @@ const TasksPage: React.FC = () => {
         {/* 右侧：视图区域 */}
         <div className="lg:col-span-2">
           {/* 视图切换按钮 */}
-          <div className="flex justify-center mb-6">
-            <div className="bg-gray-50 rounded-xl p-1.5 flex shadow-sm border border-gray-200">
+          <div className="flex justify-center mb-3">
+            <div className="bg-gray-50 rounded-xl p-1 flex shadow-sm border border-gray-200">
               <button
                 onClick={() => setViewMode('quadrant')}
-                className={`px-6 py-3 rounded-lg text-base font-semibold transition-all duration-200 ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                   viewMode === 'quadrant'
                     ? 'bg-blue-600 text-white shadow-md transform scale-105'
                     : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
@@ -408,7 +601,7 @@ const TasksPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setViewMode('kanban')}
-                className={`px-6 py-3 rounded-lg text-base font-semibold transition-all duration-200 ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
                   viewMode === 'kanban'
                     ? 'bg-blue-600 text-white shadow-md transform scale-105'
                     : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
@@ -422,16 +615,17 @@ const TasksPage: React.FC = () => {
           {/* 条件渲染视图 */}
           {viewMode === 'quadrant' ? (
             // 艾森豪威尔矩阵
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Quadrant
                 title="紧急且重要"
                 urgency={true}
                 importance={true}
                 tasks={quadrant1Tasks}
                 onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
+                onDeleteTask={handleDeleteTaskWithConfirm}
                 onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
+                onCreateSubtask={handleCreateSubtask}
               />
               <Quadrant
                 title="重要但不紧急"
@@ -439,9 +633,10 @@ const TasksPage: React.FC = () => {
                 importance={true}
                 tasks={quadrant2Tasks}
                 onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
+                onDeleteTask={handleDeleteTaskWithConfirm}
                 onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
+                onCreateSubtask={handleCreateSubtask}
               />
               <Quadrant
                 title="紧急但不重要"
@@ -449,9 +644,10 @@ const TasksPage: React.FC = () => {
                 importance={false}
                 tasks={quadrant3Tasks}
                 onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
+                onDeleteTask={handleDeleteTaskWithConfirm}
                 onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
+                onCreateSubtask={handleCreateSubtask}
               />
               <Quadrant
                 title="既不紧急也不重要"
@@ -459,23 +655,37 @@ const TasksPage: React.FC = () => {
                 importance={false}
                 tasks={quadrant4Tasks}
                 onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
+                onDeleteTask={handleDeleteTaskWithConfirm}
                 onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
+                onCreateSubtask={handleCreateSubtask}
               />
             </div>
           ) : (
             // 看板视图
             <KanbanBoard
-              tasks={tasks}
+              tasks={filterTasksBySearch(tasks.filter(task => !task.parentTaskId), searchQuery)} // 只传递主任务并应用搜索
               onEditTask={handleEditTask}
-              onDeleteTask={handleDeleteTask}
+              onDeleteTask={handleDeleteTaskWithConfirm}
               onDropTask={handleKanbanDropTask}
               onDragStart={handleDragStartTask}
+              onCreateSubtask={handleCreateSubtask}
             />
           )}
         </div>
       </div>
+
+      {/* 删除单个任务确认对话框 */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={handleCancelDeleteTask}
+        onConfirm={handleConfirmDeleteTask}
+        title="删除任务"
+        message={taskToDelete ? `确定要删除任务"${taskToDelete.title}"吗？此操作无法撤销。` : ''}
+        confirmText="删除"
+        cancelText="取消"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
     </div>
   );
 };

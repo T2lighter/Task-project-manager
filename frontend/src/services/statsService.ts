@@ -1,5 +1,5 @@
 import api from './api';
-import { TaskStats, QuadrantStats, CategoryStats, TimeSeriesData } from '../types';
+import { TaskStats, QuadrantStats, CategoryStats, TimeSeriesData, ProjectStats, ProjectTaskStats } from '../types';
 
 export const getTaskStats = async (period: 'day' | 'week' | 'month' = 'month'): Promise<TaskStats> => {
   const response = await api.get(`/stats/stats?period=${period}`);
@@ -29,5 +29,15 @@ export const getYearHeatmapData = async (year?: number): Promise<TimeSeriesData[
 
 export const getCategoryStats = async (period: 'day' | 'week' | 'month' = 'month'): Promise<CategoryStats[]> => {
   const response = await api.get(`/stats/category-stats?period=${period}`);
+  return response.data;
+};
+
+export const getProjectStats = async (): Promise<ProjectStats> => {
+  const response = await api.get('/stats/project-stats');
+  return response.data;
+};
+
+export const getProjectTaskStats = async (): Promise<ProjectTaskStats[]> => {
+  const response = await api.get('/stats/project-task-stats');
   return response.data;
 };

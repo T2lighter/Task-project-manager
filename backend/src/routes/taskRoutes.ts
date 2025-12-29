@@ -5,7 +5,10 @@ import {
   getTask, 
   updateExistingTask, 
   deleteExistingTask,
-  getTasksByQuadrantHandler
+  getTasksByQuadrantHandler,
+  createNewSubtask,
+  getTaskSubtasks,
+  getMainTasksHandler
 } from '../controllers/taskController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -15,9 +18,14 @@ router.use(authMiddleware);
 
 router.post('/', createNewTask);
 router.get('/', getAllTasks);
+router.get('/main', getMainTasksHandler); // 获取主任务列表
 router.get('/quadrant', getTasksByQuadrantHandler);
 router.get('/:id', getTask);
 router.put('/:id', updateExistingTask);
 router.delete('/:id', deleteExistingTask);
+
+// 子任务相关路由
+router.post('/:parentTaskId/subtasks', createNewSubtask); // 创建子任务
+router.get('/:parentTaskId/subtasks', getTaskSubtasks);   // 获取子任务列表
 
 export default router;

@@ -25,25 +25,25 @@ export const PRIORITY_CONFIG = {
   URGENT_IMPORTANT: {
     text: '紧急重要',
     color: 'bg-red-100 text-red-800',
-    icon: '🔥',
+    icon: '',
     weight: 4
   },
   IMPORTANT: {
     text: '重要',
     color: 'bg-blue-100 text-blue-800',
-    icon: '⭐',
+    icon: '',
     weight: 2
   },
   URGENT: {
     text: '紧急',
     color: 'bg-yellow-100 text-yellow-800',
-    icon: '⚡',
+    icon: '',
     weight: 3
   },
   NORMAL: {
     text: '普通',
     color: 'bg-gray-100 text-gray-800',
-    icon: '📋',
+    icon: '',
     weight: 1
   }
 } as const;

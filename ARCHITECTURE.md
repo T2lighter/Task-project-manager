@@ -203,7 +203,101 @@ interface HeatmapData {
 - **懒加载**：按需加载图表组件
 - **防抖处理**：避免频繁请求
 
-### 4.4 个人主页模块
+### 4.4 日程管理模块
+
+#### 核心功能
+- **月视图日历**：以月为单位展示任务安排
+- **任务按日期分组**：自动将任务按到期日期分组显示
+- **快速任务操作**：点击日期创建任务，点击任务编辑
+- **月份导航**：支持前后月份切换和快速回到今天
+- **优先级排序**：每日任务按重要性和紧急性自动排序
+
+#### 日历组件架构
+```typescript
+// 日历页面组件结构
+CalendarPage
+├── CalendarHeader    // 日历头部（月份导航）
+├── CalendarGrid      // 日历网格容器
+│   └── CalendarDay   // 单日组件（包含任务列表）
+└── TaskForm          // 任务表单弹窗
+
+// 日历工具函数
+interface CalendarUtils {
+  getMonthDays(year: number, month: number): Date[]
+  groupTasksByDate(tasks: Task[]): Record<string, Task[]>
+  formatDateKey(date: Date): string
+  isToday(date: Date): boolean
+  isCurrentMonth(date: Date, currentMonth: number): boolean
+}
+```
+
+#### 日历数据处理
+```typescript
+// 任务按日期分组
+const groupTasksByDate = (tasks: Task[]): Record<string, Task[]> => {
+  const grouped: Record<string, Task[]> = {};
+  
+  tasks.forEach(task => {
+    if (task.dueDate) {
+      const dateKey = formatDateKey(new Date(task.dueDate));
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
+      }
+      grouped[dateKey].push(task);
+    }
+  });
+  
+  // 对每天的任务按优先级排序
+  Object.keys(grouped).forEach(dateKey => {
+    grouped[dateKey].sort((a, b) => {
+      const getPriorityWeight = (task: Task) => {
+        if (task.urgency && task.importance) return 4;
+        if (task.urgency && !task.importance) return 3;
+        if (!task.urgency && task.importance) return 2;
+        return 1;
+      };
+      
+      return getPriorityWeight(b) - getPriorityWeight(a);
+    });
+  });
+  
+  return grouped;
+};
+```
+
+#### 用户交互设计
+- **日期点击**：点击空白日期创建该日任务
+- **任务点击**：点击任务卡片编辑或删除任务
+- **月份导航**：左右箭头切换月份，"今天"按钮快速回到当前月
+- **任务限制**：每日最多显示3个任务，超出显示"更多"提示
+- **状态标识**：不同颜色和图标区分任务状态和优先级
+
+#### 响应式适配
+```css
+/* 日历网格响应式 */
+.calendar-grid {
+  @apply grid grid-cols-7;
+  @apply min-h-[600px];
+}
+
+.calendar-day {
+  @apply min-h-[120px] border border-gray-200 p-2;
+  @apply cursor-pointer hover:bg-gray-50 transition-colors;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .calendar-day {
+    @apply min-h-[100px] p-1;
+  }
+  
+  .task-item {
+    @apply text-xs px-1 py-0.5;
+  }
+}
+```
+
+### 4.5 个人主页模块
 
 #### 仪表盘组件
 - **统计卡片**：核心指标展示
@@ -227,9 +321,9 @@ interface HeatmapData {
 }
 ```
 
-## 5. 数据模型设计
+## 6. 数据模型设计
 
-### 5.1 数据库设计
+### 6.1 数据库设计
 
 #### 用户表 (User)
 ```prisma
@@ -347,9 +441,9 @@ const getTaskStats = async (userId: number) => {
 }
 ```
 
-## 6. API接口设计
+## 7. API接口设计
 
-### 6.1 RESTful API规范
+### 7.1 RESTful API规范
 
 #### 接口命名规范
 ```
@@ -386,7 +480,7 @@ interface ApiResponse<T = any> {
 }
 ```
 
-### 6.2 核心API接口
+### 7.2 核心API接口
 
 #### 认证接口
 ```typescript
@@ -467,7 +561,7 @@ interface HeatmapQuery {
 }
 ```
 
-### 6.3 错误处理机制
+### 7.3 错误处理机制
 
 #### HTTP状态码规范
 ```typescript
@@ -501,9 +595,9 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
 }
 ```
 
-## 7. 前端架构设计
+## 8. 前端架构设计
 
-### 7.1 组件架构
+### 8.1 组件架构
 
 #### 组件分层
 ```
@@ -518,14 +612,19 @@ src/
 │   │   ├── PieChart.tsx
 │   │   ├── BarChart.tsx
 │   │   └── Heatmap.tsx
-│   └── task/            # 任务相关组件
-│       ├── TaskCard.tsx
-│       ├── TaskForm.tsx
-│       ├── Quadrant.tsx
-│       └── KanbanBoard.tsx
+│   ├── task/            # 任务相关组件
+│   │   ├── TaskCard.tsx
+│   │   ├── TaskForm.tsx
+│   │   ├── Quadrant.tsx
+│   │   └── KanbanBoard.tsx
+│   └── calendar/        # 日历相关组件
+│       ├── CalendarGrid.tsx
+│       ├── CalendarDay.tsx
+│       └── CalendarHeader.tsx
 ├── pages/               # 页面组件
 │   ├── ProfilePage.tsx
 │   ├── TasksPage.tsx
+│   ├── CalendarPage.tsx
 │   └── LoginPage.tsx
 └── layouts/             # 布局组件
     ├── AppLayout.tsx
@@ -538,7 +637,7 @@ src/
 - **可组合性**：复杂组件由简单组件组合而成
 - **类型安全**：所有组件都有完整的TypeScript类型
 
-### 7.2 状态管理
+### 8.2 状态管理
 
 #### Zustand Store设计
 ```typescript
@@ -585,7 +684,7 @@ interface StatsState {
 - **缓存机制**：避免重复请求相同数据
 - **订阅模式**：组件自动响应状态变化
 
-### 7.3 路由设计
+### 8.3 路由设计
 
 #### 路由配置
 ```typescript
@@ -596,6 +695,7 @@ const routes = [
     children: [
       { index: true, element: <ProfilePage /> },
       { path: 'tasks', element: <TasksPage /> },
+      { path: 'calendar', element: <CalendarPage /> },
       { path: 'settings', element: <SettingsPage /> }
     ]
   },
@@ -623,9 +723,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 }
 ```
 
-## 8. 性能优化策略
+## 9. 性能优化策略
 
-### 8.1 前端性能优化
+### 9.1 前端性能优化
 
 #### 代码分割
 ```typescript
@@ -668,7 +768,7 @@ const VirtualizedTaskList = ({ tasks }: { tasks: Task[] }) => {
 }
 ```
 
-### 8.2 后端性能优化
+### 9.2 后端性能优化
 
 #### 数据库优化
 ```sql
@@ -737,9 +837,9 @@ const getPaginatedTasks = async (userId: number, page: number, limit: number) =>
 }
 ```
 
-## 9. 安全设计
+## 10. 安全设计
 
-### 9.1 认证安全
+### 10.1 认证安全
 
 #### JWT安全配置
 ```typescript
@@ -794,7 +894,7 @@ const hashPassword = async (password: string): Promise<string> => {
 }
 ```
 
-### 9.2 数据安全
+### 10.2 数据安全
 
 #### 输入验证
 ```typescript
@@ -830,7 +930,7 @@ const getUserTasks = async (userId: number, status?: string) => {
 }
 ```
 
-### 9.3 API安全
+### 10.3 API安全
 
 #### 请求限制
 ```typescript

@@ -37,13 +37,38 @@ export interface CategoryStats {
   completionRate: number;
 }
 
+export interface ProjectStats {
+  total: number;
+  active: number;
+  completed: number;
+  planning: number;
+  onHold: number;
+  cancelled: number;
+  completionRate: number;
+}
+
+export interface ProjectTaskStats {
+  projectId: number;
+  projectName: string;
+  totalTasks: number;
+  completedTasks: number;
+  inProgressTasks: number;
+  pendingTasks: number;
+  overdueTasks: number;
+  completionRate: number;
+  progress: number;
+}
+
 export const getTaskStats = async (userId: number, period: 'day' | 'week' | 'month' = 'month'): Promise<TaskStats> => {
   try {
     const now = new Date();
     
-    // 获取所有任务用于基础统计
+    // 获取所有主任务用于基础统计（排除子任务）
     const allTasks = await prisma.task.findMany({
-      where: { userId }
+      where: { 
+        userId,
+        parentTaskId: null // 只获取主任务
+      }
     });
 
     const total = allTasks.length;
@@ -89,15 +114,16 @@ export const getTaskStats = async (userId: number, period: 'day' | 'week' | 'mon
 
 export const getQuadrantStats = async (userId: number, period: 'day' | 'week' | 'month' = 'month'): Promise<QuadrantStats> => {
   try {
-    console.log(`获取用户 ${userId} 的四象限统计数据（排除已完成任务）`);
+    console.log(`获取用户 ${userId} 的四象限统计数据（排除已完成任务和子任务）`);
     
-    // 只获取未完成的任务（排除 completed 状态）
+    // 只获取未完成的主任务（排除 completed 状态和子任务）
     const tasks = await prisma.task.findMany({
       where: { 
         userId,
         status: {
           not: 'completed'
-        }
+        },
+        parentTaskId: null // 只获取主任务
       }
     });
 
@@ -115,7 +141,7 @@ export const getQuadrantStats = async (userId: number, period: 'day' | 'week' | 
       neitherUrgentNorImportant,
     };
 
-    console.log('四象限统计结果（未完成任务）:', quadrantStats);
+    console.log('四象限统计结果（未完成主任务）:', quadrantStats);
 
     return quadrantStats;
   } catch (error) {
@@ -132,9 +158,12 @@ export const getTimeSeriesData = async (
   const result: TimeSeriesData[] = [];
   
   try {
-    // 简化实现：直接获取任务数据，在内存中处理
+    // 简化实现：直接获取主任务数据，在内存中处理
     const tasks = await prisma.task.findMany({
-      where: { userId },
+      where: { 
+        userId,
+        parentTaskId: null // 只获取主任务
+      },
       select: {
         createdAt: true,
         updatedAt: true,
@@ -200,9 +229,12 @@ export const getYearHeatmapData = async (
   try {
     console.log(`获取用户 ${userId} 的 ${year} 年度热力图数据`);
     
-    // 直接获取用户的所有任务，避免复杂的SQL日期函数
+    // 直接获取用户的所有主任务，避免复杂的SQL日期函数
     const allTasks = await prisma.task.findMany({
-      where: { userId },
+      where: { 
+        userId,
+        parentTaskId: null // 只获取主任务
+      },
       select: {
         createdAt: true,
         updatedAt: true,
@@ -289,7 +321,11 @@ export const getCategoryStats = async (userId: number, period: 'day' | 'week' | 
   const categories = await prisma.category.findMany({
     where: { userId },
     include: {
-      tasks: true
+      tasks: {
+        where: {
+          parentTaskId: null // 只包含主任务
+        }
+      }
     }
   });
 
@@ -310,4 +346,85 @@ export const getCategoryStats = async (userId: number, period: 'day' | 'week' | 
       completionRate
     };
   }).filter(stat => stat.total > 0);
+};
+
+// 获取项目统计
+export const getProjectStats = async (userId: number): Promise<ProjectStats> => {
+  try {
+    const projects = await prisma.project.findMany({
+      where: { userId }
+    });
+
+    const total = projects.length;
+    const active = projects.filter(p => p.status === 'active').length;
+    const completed = projects.filter(p => p.status === 'completed').length;
+    const planning = projects.filter(p => p.status === 'planning').length;
+    const onHold = projects.filter(p => p.status === 'on-hold').length;
+    const cancelled = projects.filter(p => p.status === 'cancelled').length;
+    const completionRate = total > 0 ? completed / total : 0;
+
+    return {
+      total,
+      active,
+      completed,
+      planning,
+      onHold,
+      cancelled,
+      completionRate
+    };
+  } catch (error) {
+    console.error('获取项目统计时出错:', error);
+    throw error;
+  }
+};
+
+// 获取项目任务统计
+export const getProjectTaskStats = async (userId: number): Promise<ProjectTaskStats[]> => {
+  try {
+    const projects = await prisma.project.findMany({
+      where: { userId },
+      include: {
+        tasks: {
+          where: {
+            parentTaskId: null // 只包含主任务
+          }
+        }
+      }
+    });
+
+    const now = new Date();
+
+    return projects.map(project => {
+      const tasks = project.tasks;
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(task => task.status === 'completed').length;
+      const inProgressTasks = tasks.filter(task => task.status === 'in-progress').length;
+      const pendingTasks = tasks.filter(task => task.status === 'pending').length;
+      
+      // 计算逾期任务
+      const overdueTasks = tasks.filter(task => 
+        task.status !== 'completed' && 
+        task.dueDate && 
+        new Date(task.dueDate) < now
+      ).length;
+
+      const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+      const progress = completionRate;
+
+      return {
+        projectId: project.id,
+        projectName: project.name,
+        totalTasks,
+        completedTasks,
+        inProgressTasks,
+        pendingTasks,
+        overdueTasks,
+        completionRate,
+        progress
+      };
+    }).filter(stat => stat.totalTasks > 0); // 只返回有任务的项目
+  } catch (error) {
+    console.error('获取项目任务统计时出错:', error);
+    throw error;
+  }
 };

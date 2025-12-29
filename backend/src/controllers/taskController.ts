@@ -5,7 +5,10 @@ import {
   getTaskById, 
   updateTask, 
   deleteTask,
-  getTasksByQuadrant
+  getTasksByQuadrant,
+  createSubtask,
+  getSubtasks,
+  getMainTasks
 } from '../services/taskService';
 
 export const createNewTask = async (req: Request, res: Response) => {
@@ -21,12 +24,7 @@ export const createNewTask = async (req: Request, res: Response) => {
 export const getAllTasks = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.userId;
-    console.log(`获取任务列表: 用户 ${userId}`);
-    
     const tasks = await getTasks(userId);
-    console.log(`找到 ${tasks.length} 个任务`);
-    console.log('任务列表:', tasks.map(t => ({ id: t.id, title: t.title, status: t.status })));
-    
     res.json(tasks);
   } catch (error) {
     console.error('获取任务列表时出错:', error);
@@ -50,12 +48,16 @@ export const getTask = async (req: Request, res: Response) => {
 export const updateExistingTask = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.userId;
-    const task = await updateTask(parseInt(req.params.id), req.body, userId);
+    const taskId = parseInt(req.params.id);
+    
+    const task = await updateTask(taskId, req.body, userId);
     if (!task) {
       return res.status(404).json({ message: '任务不存在' });
     }
+    
     res.json(task);
   } catch (error) {
+    console.error('更新任务时出错:', error);
     res.status(400).json({ message: (error as Error).message });
   }
 };
@@ -102,6 +104,51 @@ export const getTasksByQuadrantHandler = async (req: Request, res: Response) => 
       importance === 'true'
     );
     res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+// 新增：创建子任务
+export const createNewSubtask = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const parentTaskId = parseInt(req.params.parentTaskId);
+    
+    if (!parentTaskId) {
+      return res.status(400).json({ message: '父任务ID无效' });
+    }
+    
+    const subtask = await createSubtask(parentTaskId, req.body, userId);
+    res.status(201).json(subtask);
+  } catch (error) {
+    res.status(400).json({ message: (error as Error).message });
+  }
+};
+
+// 新增：获取任务的子任务列表
+export const getTaskSubtasks = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const parentTaskId = parseInt(req.params.parentTaskId);
+    
+    if (!parentTaskId) {
+      return res.status(400).json({ message: '父任务ID无效' });
+    }
+    
+    const subtasks = await getSubtasks(parentTaskId, userId);
+    res.json(subtasks);
+  } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+// 新增：获取主任务列表（不包含子任务）
+export const getMainTasksHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const mainTasks = await getMainTasks(userId);
+    res.json(mainTasks);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
   }

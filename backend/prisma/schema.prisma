@@ -8,14 +8,16 @@ datasource db {
 }
 
 model User {
-  id        Int        @id @default(autoincrement())
-  username  String     @unique
-  password  String
-  email     String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  tasks     Task[]
-  Category  Category[]
+  id          Int           @id @default(autoincrement())
+  username    String        @unique
+  password    String
+  email       String        @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tasks       Task[]
+  Category    Category[]
+  projects    Project[]
+  projectNotes ProjectNote[] // 新增：项目记录关系
 }
 
 model Task {
@@ -32,6 +34,13 @@ model Task {
   user        User       @relation(fields: [userId], references: [id])
   categoryId  Int?
   category    Category?  @relation(fields: [categoryId], references: [id])
+  projectId   Int?
+  project     Project?   @relation(fields: [projectId], references: [id])
+  
+  // 子任务关系
+  parentTaskId Int?
+  parentTask   Task?      @relation("TaskSubtasks", fields: [parentTaskId], references: [id])
+  subtasks     Task[]     @relation("TaskSubtasks")
 }
 
 model Category {
@@ -42,4 +51,32 @@ model Category {
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   tasks     Task[]
+}
+
+model Project {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?
+  status      String        @default("planning")
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  userId      Int
+  user        User          @relation(fields: [userId], references: [id])
+  tasks       Task[]
+  notes       ProjectNote[] // 新增：项目记录列表
+}
+
+model ProjectNote {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String   @db.Text // 明确指定为Text类型，支持长文本
+  type      String   @default("note") // note, summary, meeting, issue, etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
 }

@@ -4,7 +4,9 @@ import {
   getQuadrantStats,
   getTimeSeriesData,
   getYearHeatmapData,
-  getCategoryStats
+  getCategoryStats,
+  getProjectStats,
+  getProjectTaskStats
 } from '../services/statsService';
 
 export const getTaskStatsHandler = async (req: Request, res: Response) => {
@@ -76,6 +78,38 @@ export const getCategoryStatsHandler = async (req: Request, res: Response) => {
     const stats = await getCategoryStats(userId, period);
     res.json(stats);
   } catch (error) {
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+export const getProjectStatsHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: '用户未认证' });
+    }
+    
+    const stats = await getProjectStats(userId);
+    res.json(stats);
+  } catch (error) {
+    console.error('获取项目统计失败:', error);
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+export const getProjectTaskStatsHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: '用户未认证' });
+    }
+    
+    const stats = await getProjectTaskStats(userId);
+    res.json(stats);
+  } catch (error) {
+    console.error('获取项目任务统计失败:', error);
     res.status(500).json({ message: (error as Error).message });
   }
 };

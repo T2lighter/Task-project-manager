@@ -1,11 +1,13 @@
 import { create } from 'zustand';
-import { TaskStats, QuadrantStats, CategoryStats, TimeSeriesData } from '../types';
+import { TaskStats, QuadrantStats, CategoryStats, TimeSeriesData, ProjectStats, ProjectTaskStats } from '../types';
 import {
   getTaskStats,
   getQuadrantStats,
   getCategoryStats,
   getTimeSeriesData,
-  getYearHeatmapData
+  getYearHeatmapData,
+  getProjectStats,
+  getProjectTaskStats
 } from '../services/statsService';
 
 interface StatsState {
@@ -15,6 +17,8 @@ interface StatsState {
   categoryStats: CategoryStats[];
   timeSeriesData: TimeSeriesData[];
   yearTimeSeriesData: TimeSeriesData[]; // 新增：年度数据
+  projectStats: ProjectStats | null; // 新增：项目统计
+  projectTaskStats: ProjectTaskStats[]; // 新增：项目任务统计
   
   // 时间选择状态
   selectedPeriod: 'day' | 'week' | 'month';
@@ -33,6 +37,8 @@ interface StatsState {
   fetchCategoryStats: (period?: 'day' | 'week' | 'month') => Promise<void>;
   fetchTimeSeriesData: (period?: 'day' | 'week' | 'month', date?: Date) => Promise<void>;
   fetchYearHeatmapData: (year?: number) => Promise<void>;
+  fetchProjectStats: () => Promise<void>; // 新增：获取项目统计
+  fetchProjectTaskStats: () => Promise<void>; // 新增：获取项目任务统计
   fetchAllStats: (period?: 'day' | 'week' | 'month') => Promise<void>;
   clearError: () => void;
 }
@@ -44,6 +50,8 @@ export const useStatsStore = create<StatsState>((set, get) => ({
   categoryStats: [],
   timeSeriesData: [],
   yearTimeSeriesData: [],
+  projectStats: null, // 初始化项目统计
+  projectTaskStats: [], // 初始化项目任务统计
   selectedPeriod: 'day',
   selectedDate: new Date(),
   loading: false,
@@ -173,6 +181,32 @@ export const useStatsStore = create<StatsState>((set, get) => ({
     }
   },
 
+  // 获取项目统计
+  fetchProjectStats: async () => {
+    try {
+      set({ loading: true, error: null });
+      const stats = await getProjectStats();
+      set({ projectStats: stats });
+    } catch (error) {
+      set({ error: (error as Error).message });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  // 获取项目任务统计
+  fetchProjectTaskStats: async () => {
+    try {
+      set({ loading: true, error: null });
+      const stats = await getProjectTaskStats();
+      set({ projectTaskStats: stats });
+    } catch (error) {
+      set({ error: (error as Error).message });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
   // 获取所有统计数据
   fetchAllStats: async (period) => {
     try {
@@ -211,6 +245,21 @@ export const useStatsStore = create<StatsState>((set, get) => ({
         set({ yearTimeSeriesData });
       } catch (error) {
         console.warn('年度时间序列数据获取失败:', error);
+      }
+
+      // 获取项目统计数据
+      try {
+        const projectStats = await getProjectStats();
+        set({ projectStats });
+      } catch (error) {
+        console.warn('项目统计数据获取失败:', error);
+      }
+
+      try {
+        const projectTaskStats = await getProjectTaskStats();
+        set({ projectTaskStats });
+      } catch (error) {
+        console.warn('项目任务统计数据获取失败:', error);
       }
       
     } catch (error) {

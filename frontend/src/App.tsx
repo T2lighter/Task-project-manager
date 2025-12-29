@@ -2,6 +2,9 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import ProfilePage from './pages/ProfilePage';
 import TasksPage from './pages/TasksPage';
+import CalendarPage from './pages/CalendarPage';
+import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
 import { useAuthStore } from './store/authStore';
 
 function App() {
@@ -20,6 +23,9 @@ function App() {
           <Routes>
             <Route path="/" element={<ProfilePage />} />
             <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:id" element={<ProjectDetailPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -33,6 +39,10 @@ function Navigation() {
   const location = useLocation();
   
   const isActive = (path: string) => {
+    if (path === '/projects') {
+      // 项目相关路由都高亮项目管理
+      return location.pathname === '/projects' || location.pathname.startsWith('/projects/');
+    }
     return location.pathname === path;
   };
 
@@ -66,6 +76,26 @@ function Navigation() {
                 }`}
               >
                 任务管理
+              </Link>
+              <Link 
+                to="/projects" 
+                className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all duration-200 transform hover:scale-105 ${
+                  isActive('/projects') 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                项目管理
+              </Link>
+              <Link 
+                to="/calendar" 
+                className={`px-6 py-2.5 rounded-lg text-base font-semibold transition-all duration-200 transform hover:scale-105 ${
+                  isActive('/calendar') 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                日程管理
               </Link>
             </nav>
           </div>

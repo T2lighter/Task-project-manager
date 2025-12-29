@@ -4,7 +4,9 @@ import {
   getQuadrantStatsHandler,
   getTimeSeriesDataHandler,
   getYearTimeSeriesDataHandler,
-  getCategoryStatsHandler
+  getCategoryStatsHandler,
+  getProjectStatsHandler,
+  getProjectTaskStatsHandler
 } from '../controllers/statsController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -15,5 +17,7 @@ router.get('/quadrant-stats', authMiddleware, getQuadrantStatsHandler);
 router.get('/time-series', authMiddleware, getTimeSeriesDataHandler);
 router.get('/time-series-year', authMiddleware, getYearTimeSeriesDataHandler);
 router.get('/category-stats', authMiddleware, getCategoryStatsHandler);
+router.get('/project-stats', authMiddleware, getProjectStatsHandler);
+router.get('/project-task-stats', authMiddleware, getProjectTaskStatsHandler);
 
 export default router;

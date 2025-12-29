@@ -8,9 +8,10 @@ interface QuadrantProps {
   importance: boolean;
   tasks: Task[];
   onEditTask: (task: Task) => void;
-  onDeleteTask: (taskId: number) => void;
+  onDeleteTask: (task: Task) => void; // 修改为接收Task对象
   onDropTask?: (task: Task, urgency: boolean, importance: boolean) => void;
   onDragStart?: (task: Task) => void;
+  onCreateSubtask?: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => void; // 新增
 }
 
 const Quadrant: React.FC<QuadrantProps> = ({
@@ -21,7 +22,8 @@ const Quadrant: React.FC<QuadrantProps> = ({
   onEditTask,
   onDeleteTask,
   onDropTask,
-  onDragStart
+  onDragStart,
+  onCreateSubtask
 }) => {
   const [isDragOver, setIsDragOver] = React.useState(false);
 
@@ -79,7 +81,7 @@ const Quadrant: React.FC<QuadrantProps> = ({
 
   return (
     <div 
-      className={`rounded-lg shadow p-4 border-l-4 min-h-32 drag-transition ${
+      className={`rounded-lg shadow p-3 border-l-4 min-h-24 drag-transition ${
         isDragOver 
           ? 'drop-zone-active' 
           : 'bg-white hover:bg-gray-50'
@@ -88,10 +90,10 @@ const Quadrant: React.FC<QuadrantProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <h2 className={`text-lg font-semibold ${colorClasses.text} mb-4`}>
+      <h2 className={`text-base font-semibold ${colorClasses.text} mb-3`}>
         {title} ({tasks.length})
       </h2>
-      <div className="space-y-3 min-h-[100px] max-h-[400px] overflow-y-auto">
+      <div className="space-y-2 min-h-[80px] max-h-[267px] overflow-y-auto">
         {tasks.length === 0 ? (
           <p className="text-gray-500 italic">此象限中没有任务</p>
         ) : (
@@ -102,7 +104,9 @@ const Quadrant: React.FC<QuadrantProps> = ({
               onEdit={onEditTask}
               onDelete={onDeleteTask}
               onDragStart={onDragStart}
-              showPriority={true}
+              onCreateSubtask={onCreateSubtask}
+              showPriority={false} // 四象限中不显示优先级，因为位置已经表示了优先级
+              showSubtasks={true}
             />
           ))
         )}

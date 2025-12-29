@@ -7,9 +7,10 @@ interface KanbanColumnProps {
   status: 'pending' | 'in-progress' | 'completed';
   tasks: Task[];
   onEditTask: (task: Task) => void;
-  onDeleteTask: (taskId: number) => void;
+  onDeleteTask: (task: Task) => void; // 修改为接收Task对象
   onDropTask: (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => void;
   onDragStart: (task: Task) => void;
+  onCreateSubtask?: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => void; // 新增
 }
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
@@ -19,7 +20,8 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onEditTask,
   onDeleteTask,
   onDropTask,
-  onDragStart
+  onDragStart,
+  onCreateSubtask
 }) => {
   const [isDragOver, setIsDragOver] = React.useState(false);
 
@@ -85,7 +87,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 
   return (
     <div
-      className={`rounded-lg shadow p-4 border-l-4 min-h-32 drag-transition ${
+      className={`rounded-lg shadow p-3 border-l-4 min-h-24 drag-transition ${
         isDragOver 
           ? 'drop-zone-active' 
           : 'bg-white hover:bg-gray-50'
@@ -94,13 +96,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <h2 className={`text-lg font-semibold ${colorClasses.text} mb-4`}>
+      <h2 className={`text-base font-semibold ${colorClasses.text} mb-3`}>
         {title} ({tasks.length})
       </h2>
       
-      <div className="space-y-3 min-h-[100px] max-h-[500px] overflow-y-auto">
+      <div className="space-y-2 min-h-[100px] max-h-[600px] overflow-y-auto">
         {tasks.length === 0 ? (
-          <p className="text-gray-500 italic">此列中没有任务</p>
+          <p className="text-gray-500 italic text-sm">此列中没有任务</p>
         ) : (
           tasks.map(task => (
             <TaskCard
@@ -109,8 +111,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               onEdit={onEditTask}
               onDelete={onDeleteTask}
               onDragStart={onDragStart}
+              onCreateSubtask={onCreateSubtask}
               compact={true}
               showPriority={true}
+              showSubtasks={true}
+              showStatus={false} // 在看板中隐藏状态，因为列已经表示了状态
             />
           ))
         )}
@@ -122,9 +127,10 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
 interface KanbanBoardProps {
   tasks: Task[];
   onEditTask: (task: Task) => void;
-  onDeleteTask: (taskId: number) => void;
+  onDeleteTask: (task: Task) => void; // 修改为接收Task对象
   onDropTask: (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => void;
   onDragStart: (task: Task) => void;
+  onCreateSubtask?: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => void; // 新增
 }
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
@@ -132,7 +138,8 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onEditTask,
   onDeleteTask,
   onDropTask,
-  onDragStart
+  onDragStart,
+  onCreateSubtask // 新增参数
 }) => {
   // 任务优先级排序函数
   const sortTasksByPriority = (tasks: Task[]) => {
@@ -166,7 +173,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const completedTasks = sortTasksByPriority(tasks.filter(task => task.status === 'completed'));
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
       <KanbanColumn
         title="待办"
         status="pending"
@@ -175,6 +182,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onDeleteTask={onDeleteTask}
         onDropTask={onDropTask}
         onDragStart={onDragStart}
+        onCreateSubtask={onCreateSubtask}
       />
       <KanbanColumn
         title="进行中"
@@ -184,6 +192,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onDeleteTask={onDeleteTask}
         onDropTask={onDropTask}
         onDragStart={onDragStart}
+        onCreateSubtask={onCreateSubtask}
       />
       <KanbanColumn
         title="已完成"
@@ -193,6 +202,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onDeleteTask={onDeleteTask}
         onDropTask={onDropTask}
         onDragStart={onDragStart}
+        onCreateSubtask={onCreateSubtask}
       />
     </div>
   );

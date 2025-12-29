@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # 后端服务
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: task-manager-api
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:./data/prod.db
+      - JWT_SECRET=${JWT_SECRET:-your-super-secure-jwt-secret-key}
+      - PORT=5000
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+    volumes:
+      - backend_data:/app/data
+      - ./backend/prisma:/app/prisma
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    restart: unless-stopped
+    networks:
+      - task-manager-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: task-manager-web
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:5000/api}
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - task-manager-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 数据库备份服务（可选）
+  backup:
+    image: alpine:latest
+    container_name: task-manager-backup
+    volumes:
+      - backend_data:/data
+      - ./backups:/backups
+    command: >
+      sh -c "
+        while true; do
+          echo 'Creating backup...'
+          cp /data/prod.db /backups/backup-$$(date +%Y%m%d-%H%M%S).db
+          find /backups -name '*.db' -mtime +7 -delete
+          echo 'Backup completed'
+          sleep 86400
+        done
+      "
+    restart: unless-stopped
+    networks:
+      - task-manager-network
+
+volumes:
+  backend_data:
+    driver: local
+
+networks:
+  task-manager-network:
+    driver: bridge
