@@ -21,6 +21,7 @@ const ProjectsPage: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'planning' | 'on-hold'>('all');
+  const [searchQuery, setSearchQuery] = useState(''); // 新增：搜索查询状态
   
   // 删除确认对话框状态
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -29,6 +30,29 @@ const ProjectsPage: React.FC = () => {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // 键盘快捷键支持
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl+F 聚焦搜索框
+      if (event.ctrlKey && event.key === 'f') {
+        event.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="搜索项目"]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }
+      // ESC 键清除搜索
+      if (event.key === 'Escape' && searchQuery) {
+        setSearchQuery('');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [searchQuery]);
 
   // 项目操作处理函数
   const handleCreateProject = (projectData: Omit<Project, 'id' | 'userId'>) => {
@@ -85,8 +109,33 @@ const ProjectsPage: React.FC = () => {
     navigate(`/projects/${project.id}`);
   };
 
-  // 按状态过滤项目
-  const filteredProjects = projects.filter(project => {
+  // 搜索过滤函数
+  const filterProjectsBySearch = (projects: Project[], query: string) => {
+    if (!query.trim()) return projects;
+    
+    const searchTerm = query.toLowerCase().trim();
+    return projects.filter(project => {
+      // 搜索项目名称
+      const nameMatch = project.name.toLowerCase().includes(searchTerm);
+      
+      // 搜索项目描述
+      const descriptionMatch = project.description?.toLowerCase().includes(searchTerm) || false;
+      
+      // 搜索状态（中文）
+      const statusMap: { [key: string]: string } = {
+        'planning': '规划中',
+        'active': '进行中',
+        'completed': '已完成',
+        'on-hold': '暂停'
+      };
+      const statusMatch = statusMap[project.status]?.includes(searchTerm) || false;
+      
+      return nameMatch || descriptionMatch || statusMatch;
+    });
+  };
+
+  // 按状态过滤项目，然后应用搜索
+  const statusFilteredProjects = projects.filter(project => {
     switch (filter) {
       case 'active':
         return project.status === 'active';
@@ -100,6 +149,8 @@ const ProjectsPage: React.FC = () => {
         return true;
     }
   });
+
+  const filteredProjects = filterProjectsBySearch(statusFilteredProjects, searchQuery);
 
   // 计算各种状态的项目数量
   const getProjectCount = (filterType: string) => {
@@ -210,17 +261,78 @@ const ProjectsPage: React.FC = () => {
         </button>
       </div>
 
+      {/* 搜索框 */}
+      <div className="relative max-w-md">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          type="text"
+          placeholder="搜索项目... (Ctrl+F)"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white focus:bg-white shadow-sm"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-100 rounded-r-lg transition-colors duration-200"
+            title="清除搜索 (ESC)"
+          >
+            <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* 搜索结果提示 */}
+      {searchQuery && (
+        <div className="flex items-center justify-between text-sm bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+          <span className="text-blue-700 font-medium">
+            找到 {filteredProjects.length} 个包含 "{searchQuery}" 的项目
+          </span>
+          <button
+            onClick={() => setSearchQuery('')}
+            className="text-blue-600 hover:text-blue-800 text-sm underline"
+          >
+            清除搜索
+          </button>
+        </div>
+      )}
+
       {/* 项目网格 */}
       {filteredProjects.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-gray-400 text-6xl mb-4">📋</div>
+          <div className="text-gray-400 text-6xl mb-4">
+            {searchQuery ? '🔍' : '📋'}
+          </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {filter === 'all' ? '还没有项目' : `没有${filter === 'active' ? '进行中' : filter === 'completed' ? '已完成' : filter === 'planning' ? '规划中' : '暂停'}的项目`}
+            {searchQuery 
+              ? `没有找到包含"${searchQuery}"的项目` 
+              : filter === 'all' 
+                ? '还没有项目' 
+                : `没有${filter === 'active' ? '进行中' : filter === 'completed' ? '已完成' : filter === 'planning' ? '规划中' : '暂停'}的项目`
+            }
           </h3>
           <p className="text-gray-600 mb-4">
-            {filter === 'all' ? '创建您的第一个项目来开始管理任务' : '切换到其他筛选条件查看项目'}
+            {searchQuery 
+              ? '尝试使用不同的关键词搜索，或清除搜索条件查看所有项目'
+              : filter === 'all' 
+                ? '创建您的第一个项目来开始管理任务' 
+                : '切换到其他筛选条件查看项目'
+            }
           </p>
-          {filter === 'all' && (
+          {searchQuery ? (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              清除搜索
+            </button>
+          ) : filter === 'all' && (
             <button
               onClick={() => setIsFormOpen(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"

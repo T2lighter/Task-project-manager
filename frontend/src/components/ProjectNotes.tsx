@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { marked } from 'marked';
+import MDEditor from '@uiw/react-md-editor';
+import '@uiw/react-md-editor/markdown-editor.css';
+import '@uiw/react-markdown-preview/markdown.css';
 import { Project, ProjectNote } from '../types';
 import { 
   createProjectNote, 
@@ -20,6 +23,8 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
   const [notes, setNotes] = useState<ProjectNote[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingNote, setEditingNote] = useState<ProjectNote | null>(null);
+  const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
+  const [changingTypeNoteId, setChangingTypeNoteId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [newNote, setNewNote] = useState({
     title: '',
@@ -43,6 +48,23 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
   useEffect(() => {
     loadNotes();
   }, [project.id]);
+
+  // 点击外部关闭类型选择器
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (changingTypeNoteId !== null) {
+        const target = event.target as Element;
+        if (!target.closest('.type-selector')) {
+          setChangingTypeNoteId(null);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [changingTypeNoteId]);
 
   const loadNotes = async () => {
     try {
@@ -95,9 +117,6 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
       setNotes(notes.map(note => note.id === noteId ? updatedNote : note));
       setEditingNote(null);
       onNotesChange?.();
-      
-      // 显示成功提示
-      showAlertMessage('更新成功', `记录"${updatedNote.title}"已成功更新。`, 'success');
     } catch (error) {
       console.error('更新项目记录失败:', error);
       showAlertMessage('更新失败', '更新记录时发生错误，请重试。', 'error');
@@ -129,6 +148,63 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
   const handleCancelDeleteNote = () => {
     setShowDeleteConfirm(false);
     setNoteToDelete(null);
+  };
+
+  // 切换记录展开状态
+  const toggleNoteExpansion = (noteId: number) => {
+    const newExpanded = new Set(expandedNotes);
+    if (newExpanded.has(noteId)) {
+      newExpanded.delete(noteId);
+    } else {
+      newExpanded.add(noteId);
+    }
+    setExpandedNotes(newExpanded);
+  };
+
+  // 提取Markdown内容的目录
+  const extractTableOfContents = (content: string): string[] => {
+    if (!content.trim()) return [];
+    
+    const lines = content.split('\n');
+    const headings: string[] = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('#')) {
+        // 提取标题文本，移除#号和多余空格
+        const headingText = trimmed.replace(/^#+\s*/, '').trim();
+        if (headingText) {
+          // 根据#号数量确定层级
+          const level = trimmed.match(/^#+/)?.[0].length || 1;
+          const indent = '  '.repeat(Math.max(0, level - 1));
+          headings.push(`${indent}• ${headingText}`);
+        }
+      }
+    }
+    
+    return headings.slice(0, 5); // 最多显示5个标题
+  };
+
+  // 处理记录类型更改
+  const handleTypeChange = async (noteId: number, newType: ProjectNote['type']) => {
+    try {
+      await handleUpdateNote(noteId, { type: newType });
+      setChangingTypeNoteId(null);
+    } catch (error) {
+      console.error('更改记录类型失败:', error);
+    }
+  };
+
+  // 获取所有可用的记录类型
+  const getAvailableTypes = (): Array<{ value: ProjectNote['type']; label: string; icon: string }> => {
+    return [
+      { value: 'note', label: '记录', icon: '📝' },
+      { value: 'summary', label: '总结', icon: '📋' },
+      { value: 'meeting', label: '会议', icon: '🤝' },
+      { value: 'issue', label: '问题', icon: '⚠️' },
+      { value: 'milestone', label: '里程碑', icon: '🎯' },
+      { value: 'reflection', label: '反思', icon: '💭' }
+    ];
   };
 
   const renderMarkdown = (content: string) => {
@@ -311,51 +387,49 @@ ${format(new Date(), 'yyyy-MM-dd')}
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
           <span>📚</span>
           项目记录与总结
           {notes.length > 0 && (
-            <span className="text-sm font-normal text-gray-500">({notes.length}条记录)</span>
+            <span className="text-xs font-normal text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{notes.length}</span>
           )}
         </h2>
         
         <button
           onClick={() => setIsCreating(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700 transition-colors"
         >
-          <span>➕</span>
-          新建记录
+          新建
         </button>
       </div>
 
-      {/* 创建新记录表单 */}
+      {/* 创建新记录表单 - 更紧凑版 */}
       {isCreating && (
-        <div className="mb-6 p-4 border border-blue-200 rounded-lg bg-blue-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-800">创建新记录</h3>
+        <div className="mb-3 p-3 border border-blue-200 rounded-lg bg-blue-50">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-800">创建新记录</h3>
             <button
               onClick={() => {
                 setIsCreating(false);
                 setNewNote({ title: '', content: '', type: 'note' });
               }}
-              className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100 transition-colors flex items-center gap-1"
+              className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100 transition-colors"
               title="关闭"
             >
-              <span>❌</span>
-              <span className="text-sm">关闭</span>
+              ❌
             </button>
           </div>
           
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
               <input
                 type="text"
                 placeholder="记录标题"
                 value={newNote.title}
                 onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <select
                 value={newNote.type}
@@ -367,7 +441,7 @@ ${format(new Date(), 'yyyy-MM-dd')}
                     content: newNote.content || getTemplate(type)
                   });
                 }}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="note">📝 记录</option>
                 <option value="summary">📋 总结</option>
@@ -378,76 +452,41 @@ ${format(new Date(), 'yyyy-MM-dd')}
               </select>
             </div>
             
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2">
               <button
                 onClick={() => setNewNote({ ...newNote, content: getTemplate(newNote.type) })}
-                className="text-sm bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200 transition-colors"
+                className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200 transition-colors"
               >
                 📋 使用模板
               </button>
             </div>
             
-            {/* 左右分屏编辑器 */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {/* 左侧：编辑区域 */}
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600 flex items-center gap-2">
-                  <span>📝</span>
-                  编辑区域 - 支持Markdown语法
-                </div>
-                <textarea
-                  placeholder="记录内容（支持Markdown语法）"
-                  value={newNote.content}
-                  onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
-                  className="w-full h-96 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                  style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace' }}
-                />
-              </div>
-              
-              {/* 右侧：预览区域 */}
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600 flex items-center gap-2">
-                  <span>👁️</span>
-                  实时预览
-                </div>
-                <div className="border border-gray-200 rounded-lg p-3 h-96 bg-gray-50 overflow-y-auto">
-                  <div 
-                    className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(newNote.content) }}
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* Markdown语法提示 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="text-sm text-blue-800 font-medium mb-2">💡 Markdown语法提示：</div>
-              <div className="text-xs text-blue-700 grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div><code># 标题</code> - 一级标题</div>
-                <div><code>## 标题</code> - 二级标题</div>
-                <div><code>**粗体**</code> - 粗体文字</div>
-                <div><code>*斜体*</code> - 斜体文字</div>
-                <div><code>- 列表</code> - 无序列表</div>
-                <div><code>1. 列表</code> - 有序列表</div>
-                <div><code>- [ ] 任务</code> - 待办事项</div>
-                <div><code>- [x] 任务</code> - 已完成任务</div>
-              </div>
+            <div className="markdown-editor-container">
+              <MDEditor
+                value={newNote.content}
+                onChange={(val) => setNewNote({ ...newNote, content: val || '' })}
+                preview="edit"
+                hideToolbar={false}
+                height={200}
+                data-color-mode="light"
+                visibleDragbar={false}
+              />
             </div>
             
             <div className="flex gap-2">
               <button
                 onClick={handleCreateNote}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                className="bg-green-600 text-white px-2 py-1 rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1"
               >
                 <span>💾</span>
-                保存记录
+                保存
               </button>
               <button
                 onClick={() => {
                   setIsCreating(false);
                   setNewNote({ title: '', content: '', type: 'note' });
                 }}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-600 transition-colors flex items-center gap-2"
+                className="bg-gray-500 text-white px-2 py-1 rounded-md text-sm font-medium hover:bg-gray-600 transition-colors flex items-center gap-1"
               >
                 <span>❌</span>
                 取消
@@ -457,142 +496,211 @@ ${format(new Date(), 'yyyy-MM-dd')}
         </div>
       )}
 
-      {/* 记录列表 */}
+      {/* 记录列表 - 知乎风格单列布局 */}
       {loading ? (
-        <div className="text-center py-8">
-          <div className="text-gray-400 text-4xl mb-4">⏳</div>
-          <p className="text-gray-600">加载中...</p>
+        <div className="text-center py-6">
+          <div className="text-gray-400 text-2xl mb-2">⏳</div>
+          <p className="text-gray-600 text-sm">加载中...</p>
         </div>
       ) : notes.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-gray-400 text-4xl mb-4">📝</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">还没有项目记录</h3>
-          <p className="text-gray-600 mb-4">记录项目的进展、问题、总结和经验教训</p>
+        <div className="text-center py-8">
+          <div className="text-gray-400 text-3xl mb-3">📝</div>
+          <h3 className="text-base font-medium text-gray-900 mb-2">还没有项目记录</h3>
+          <p className="text-gray-600 text-sm mb-3">记录项目的进展、问题、总结和经验教训</p>
           <button
             onClick={() => setIsCreating(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-blue-700 transition-colors"
           >
             创建第一条记录
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-2">
           {notes.map((note) => {
             const typeConfig = getTypeConfig(note.type);
             const isEditing = editingNote?.id === note.id;
+            const isExpanded = expandedNotes.has(note.id);
+            const tableOfContents = extractTableOfContents(note.content);
             
             return (
-              <div key={note.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
+              <div 
+                key={note.id} 
+                className={`border border-gray-200 rounded-lg transition-colors ${
+                  isEditing ? 'border-blue-300' : 'hover:bg-gray-50'
+                }`}
+              >
+                {/* 标题行 - 始终显示 */}
+                <div 
+                  className="flex items-center justify-between p-3 cursor-pointer"
+                  onClick={() => !isEditing && toggleNoteExpansion(note.id)}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {/* 可点击的类型标签 */}
+                    <div className="relative flex-shrink-0 type-selector">
+                      {changingTypeNoteId === note.id ? (
+                        <div className="absolute top-0 left-0 z-10 bg-white border border-gray-300 rounded-lg shadow-lg p-2 min-w-32">
+                          <div className="space-y-1">
+                            {getAvailableTypes().map((type) => (
+                              <button
+                                key={type.value}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTypeChange(note.id, type.value);
+                                }}
+                                className={`w-full text-left px-2 py-1 rounded text-xs hover:bg-gray-100 transition-colors flex items-center gap-1 ${
+                                  note.type === type.value ? 'bg-blue-100 text-blue-800' : 'text-gray-700'
+                                }`}
+                              >
+                                <span>{type.icon}</span>
+                                <span>{type.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setChangingTypeNoteId(null);
+                              }}
+                              className="w-full text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                              取消
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setChangingTypeNoteId(note.id);
+                          }}
+                          className={`text-xs px-1.5 py-0.5 rounded-full ${typeConfig.color} flex items-center gap-1 hover:opacity-80 transition-opacity cursor-pointer`}
+                          title="点击更改记录类型"
+                        >
+                          <span className="text-xs">{typeConfig.icon}</span>
+                          <span className="text-xs">{typeConfig.label}</span>
+                        </button>
+                      )}
+                    </div>
+                    
                     {isEditing ? (
                       <input
                         type="text"
                         value={editingNote.title}
                         onChange={(e) => setEditingNote({ ...editingNote, title: e.target.value })}
-                        className="text-lg font-semibold text-gray-900 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none w-full"
+                        className="text-sm font-medium text-gray-900 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none flex-1"
+                        onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
-                      <h3 className="text-lg font-semibold text-gray-900">{note.title}</h3>
+                      <h3 className="text-sm font-medium text-gray-900 truncate flex-1">{note.title}</h3>
                     )}
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-xs px-2 py-1 rounded-full ${typeConfig.color} flex items-center gap-1`}>
-                        <span>{typeConfig.icon}</span>
-                        <span>{typeConfig.label}</span>
-                      </span>
+                    
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-xs text-gray-500">
-                        {format(new Date(note.createdAt), 'yyyy-MM-dd HH:mm')}
+                        {format(new Date(note.createdAt), 'MM-dd')}
                       </span>
-                      {note.updatedAt !== note.createdAt && (
+                      {!isEditing && (
                         <span className="text-xs text-gray-400">
-                          (已编辑)
+                          {isExpanded ? '▼' : '▶'}
                         </span>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2 ml-4">
+                  <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                     {isEditing ? (
                       <>
                         <button
-                          onClick={() => handleUpdateNote(note.id, editingNote)}
-                          className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200 transition-colors flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUpdateNote(note.id, editingNote);
+                          }}
+                          className="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded hover:bg-green-200 transition-colors"
                           title="保存更改"
                         >
-                          <span>💾</span>
-                          <span>保存</span>
+                          💾
                         </button>
                         <button
-                          onClick={() => setEditingNote(null)}
-                          className="text-sm bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200 transition-colors flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingNote(null);
+                          }}
+                          className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded hover:bg-gray-200 transition-colors"
                           title="取消编辑"
                         >
-                          <span>❌</span>
-                          <span>取消</span>
+                          ❌
                         </button>
                       </>
                     ) : (
                       <>
                         <button
-                          onClick={() => setEditingNote(note)}
-                          className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200 transition-colors flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingNote(note);
+                            setExpandedNotes(new Set([...expandedNotes, note.id]));
+                          }}
+                          className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded hover:bg-blue-200 transition-colors"
                           title="编辑记录"
                         >
-                          <span>✏️</span>
-                          <span>编辑</span>
+                          ✏️
                         </button>
                         <button
-                          onClick={() => handleDeleteNote(note)}
-                          className="text-sm bg-red-100 text-red-800 px-2 py-1 rounded hover:bg-red-200 transition-colors flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteNote(note);
+                          }}
+                          className="text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded hover:bg-red-200 transition-colors"
                           title="删除记录"
                         >
-                          <span>🗑️</span>
-                          <span>删除</span>
+                          🗑️
                         </button>
                       </>
                     )}
                   </div>
                 </div>
-                
-                <div className="mt-3">
-                  {isEditing ? (
-                    /* 左右分屏编辑器 */
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                      {/* 左侧：编辑区域 */}
-                      <div className="space-y-2">
-                        <div className="text-sm text-gray-600 flex items-center gap-2">
-                          <span>📝</span>
-                          编辑区域
-                        </div>
-                        <textarea
-                          value={editingNote.content}
-                          onChange={(e) => setEditingNote({ ...editingNote, content: e.target.value })}
-                          className="w-full h-64 p-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                          style={{ fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace' }}
-                        />
-                      </div>
-                      
-                      {/* 右侧：预览区域 */}
-                      <div className="space-y-2">
-                        <div className="text-sm text-gray-600 flex items-center gap-2">
-                          <span>👁️</span>
-                          实时预览
-                        </div>
-                        <div className="border border-gray-200 rounded-lg p-3 h-64 bg-gray-50 overflow-y-auto">
-                          <div 
-                            className="prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: renderMarkdown(editingNote.content) }}
+
+                {/* 目录预览 - 收起状态下显示 */}
+                {!isExpanded && !isEditing && tableOfContents.length > 0 && (
+                  <div className="px-3 pb-3">
+                    <div className="text-xs text-gray-600 space-y-1">
+                      <div className="font-medium text-gray-700 mb-1">目录：</div>
+                      {tableOfContents.map((heading, index) => (
+                        <div key={index} className="text-gray-600">{heading}</div>
+                      ))}
+                      {extractTableOfContents(note.content).length > 5 && (
+                        <div className="text-gray-400 italic">...</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 展开内容 - 展开状态下显示 */}
+                {(isExpanded || isEditing) && (
+                  <div className="px-3 pb-3 border-t border-gray-100">
+                    {isEditing ? (
+                      <div className="mt-3">
+                        <div className="markdown-editor-container">
+                          <MDEditor
+                            value={editingNote.content}
+                            onChange={(val) => setEditingNote({ ...editingNote, content: val || '' })}
+                            preview="edit"
+                            hideToolbar={false}
+                            height={300}
+                            data-color-mode="light"
+                            visibleDragbar={false}
                           />
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div 
-                      className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
-                    />
-                  )}
-                </div>
+                    ) : (
+                      <div className="mt-3">
+                        <div 
+                          className="prose prose-sm max-w-none text-gray-700"
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(note.content) }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -627,3 +735,46 @@ ${format(new Date(), 'yyyy-MM-dd')}
 };
 
 export default ProjectNotes;
+
+// 添加自定义样式来优化MDEditor显示
+const styles = `
+  .markdown-editor-container .w-md-editor {
+    background-color: transparent;
+  }
+  
+  .markdown-editor-container .w-md-editor-text-pre,
+  .markdown-editor-container .w-md-editor-text-input,
+  .markdown-editor-container .w-md-editor-text {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+  }
+  
+  .markdown-editor-container .w-md-editor-toolbar {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 8px;
+  }
+  
+  .markdown-editor-container .w-md-editor-toolbar ul li button {
+    padding: 4px 6px;
+    margin: 0 2px;
+  }
+  
+  .markdown-editor-container .w-md-editor-preview {
+    padding: 12px;
+  }
+  
+  .markdown-editor-container .w-md-editor.w-md-editor-focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  }
+`;
+
+// 注入样式
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = styles;
+  if (!document.head.querySelector('style[data-md-editor-custom]')) {
+    styleElement.setAttribute('data-md-editor-custom', 'true');
+    document.head.appendChild(styleElement);
+  }
+}

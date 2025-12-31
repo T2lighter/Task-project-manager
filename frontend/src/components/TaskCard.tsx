@@ -10,6 +10,7 @@ interface TaskCardProps {
   task: Task;
   onEdit?: (task: Task) => void; // 改为可选
   onDelete?: (task: Task) => void; // 改为可选
+  onCopy?: (task: Task) => void; // 新增：复制任务回调
   onDragStart?: (task: Task) => void;
   compact?: boolean;
   showPriority?: boolean;
@@ -18,12 +19,14 @@ interface TaskCardProps {
   showCompleted?: boolean; // 新增：是否显示已完成样式
   showStatus?: boolean; // 新增：是否显示状态标签
   showProject?: boolean; // 新增：是否显示项目标签
+  showPersonalizedLabels?: boolean; // 新增：是否显示个性化标签
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ 
   task, 
   onEdit, 
   onDelete, 
+  onCopy, // 新增：复制回调
   onDragStart, 
   compact = false, 
   showPriority = true,
@@ -31,7 +34,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onCreateSubtask,
   showCompleted = true, // 默认显示已完成样式
   showStatus = true, // 默认显示状态标签
-  showProject = true // 默认显示项目标签
+  showProject = true, // 默认显示项目标签
+  showPersonalizedLabels = false // 默认不显示个性化标签
 }) => {
   const [isDragging, setIsDragging] = React.useState(false);
   const [isSubtaskModalOpen, setIsSubtaskModalOpen] = React.useState(false); // 新增：子任务Modal状态
@@ -98,7 +102,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
             </span>
           )}
         </h3>
-        {(onEdit || onDelete || onCreateSubtask) && (
+        {(onEdit || onDelete || onCopy || onCreateSubtask) && (
           <div className={`flex ${compact ? 'space-x-1' : 'space-x-1'} flex-shrink-0`}>
             {/* 添加子任务按钮 */}
             {onCreateSubtask && !task.parentTaskId && ( // 只有主任务才能添加子任务
@@ -120,6 +124,19 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 title="编辑任务"
               >
                 ✏️
+              </button>
+            )}
+            {/* 复制按钮 */}
+            {onCopy && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopy(task);
+                }}
+                className={`text-purple-600 hover:text-purple-800 ${compact ? 'text-sm' : 'text-sm'}`}
+                title="复制任务"
+              >
+                📋
               </button>
             )}
             {onDelete && (
@@ -177,6 +194,29 @@ const TaskCard: React.FC<TaskCardProps> = ({
               <span className={`bg-orange-100 text-orange-800 ${compact ? 'px-1 py-0.5' : 'px-1.5 py-0.5'} rounded-full ${compact ? 'text-xs' : 'text-xs'}`}>
                 {task.project.name}
               </span>
+            )}
+            {/* 个性化标签 */}
+            {showPersonalizedLabels && task.labels && task.labels.length > 0 && (
+              <>
+                {task.labels.slice(0, compact ? 2 : 3).map((taskLabel) => {
+                  if (!taskLabel.label) return null;
+                  return (
+                    <span
+                      key={taskLabel.labelId}
+                      className={`${compact ? 'px-1 py-0.5 text-xs' : 'px-1.5 py-0.5 text-xs'} rounded-full text-white font-medium`}
+                      style={{ backgroundColor: taskLabel.label.color }}
+                      title={taskLabel.label.description || taskLabel.label.name}
+                    >
+                      {taskLabel.label.name}
+                    </span>
+                  );
+                })}
+                {task.labels.length > (compact ? 2 : 3) && (
+                  <span className={`bg-gray-100 text-gray-600 ${compact ? 'px-1 py-0.5 text-xs' : 'px-1.5 py-0.5 text-xs'} rounded-full`}>
+                    +{task.labels.length - (compact ? 2 : 3)}
+                  </span>
+                )}
+              </>
             )}
             {task.category && (
               <span className={`bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-full ${compact ? 'text-xs' : 'text-xs'}`}>

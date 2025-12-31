@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfYear, endOfYear, getDay, subDays, addDays } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, startOfYear, endOfYear, getDay, subDays, addDays, addMonths, subMonths } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { TimeSeriesData } from '../types';
 
@@ -22,6 +22,7 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
 }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
+  const [calendarDate, setCalendarDate] = useState(selectedDate); // 用于日历导航的日期
 
   // 计算选定时间范围内的数据
   const getSelectedPeriodData = () => {
@@ -262,6 +263,124 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
   // 月份标签和星期标签
   const weekDayLabels = ['日', '一', '二', '三', '四', '五', '六'];
 
+  // 渲染自定义日历
+  const renderCalendar = () => {
+    const monthStart = startOfMonth(calendarDate);
+    const monthEnd = endOfMonth(calendarDate);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }); // 周日开始
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 0 });
+    
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+    const weeks = [];
+    
+    // 按周分组
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+
+    return (
+      <div className="w-60">
+        {/* 月份导航 */}
+        <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-200">
+          <button
+            onClick={() => setCalendarDate(subMonths(calendarDate, 1))}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            title="上个月"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          
+          <div className="text-sm font-semibold text-gray-800">
+            {format(calendarDate, 'yyyy年MM月', { locale: zhCN })}
+          </div>
+          
+          <button
+            onClick={() => setCalendarDate(addMonths(calendarDate, 1))}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            title="下个月"
+          >
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 星期标题 */}
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {weekDayLabels.map((day) => (
+            <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* 日期网格 */}
+        <div className="space-y-1 mb-2">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 gap-1">
+              {week.map((day) => {
+                const isCurrentMonth = day.getMonth() === calendarDate.getMonth();
+                const isSelected = isSameDay(day, selectedDate);
+                const isToday = isSameDay(day, new Date());
+                
+                return (
+                  <button
+                    key={day.toISOString()}
+                    onClick={() => {
+                      onDateChange(day);
+                      setShowDatePicker(false);
+                    }}
+                    className={`
+                      w-7 h-7 text-xs rounded-md transition-all duration-200 flex items-center justify-center
+                      ${isCurrentMonth 
+                        ? 'text-gray-900 hover:bg-emerald-50' 
+                        : 'text-gray-300 hover:bg-gray-50'
+                      }
+                      ${isSelected 
+                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 font-semibold' 
+                        : ''
+                      }
+                      ${isToday && !isSelected 
+                        ? 'bg-emerald-100 text-emerald-700 font-semibold' 
+                        : ''
+                      }
+                    `}
+                    title={format(day, 'yyyy年MM月dd日', { locale: zhCN })}
+                  >
+                    {format(day, 'd')}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* 快捷操作 */}
+        <div className="flex gap-2 pt-2 border-t border-gray-200">
+          <button
+            onClick={() => {
+              const today = new Date();
+              onDateChange(today);
+              setCalendarDate(today);
+              setShowDatePicker(false);
+            }}
+            className="flex-1 px-2 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-xs font-medium hover:bg-emerald-100 transition-colors"
+          >
+            今天
+          </button>
+          <button
+            onClick={() => setShowDatePicker(false)}
+            className="flex-1 px-2 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-md text-xs font-medium hover:bg-gray-100 transition-colors"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden h-full flex flex-col">
       {/* 头部区域 */}
@@ -301,7 +420,10 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
             {/* 日期选择器 */}
             <div className="relative">
               <button
-                onClick={() => setShowDatePicker(!showDatePicker)}
+                onClick={() => {
+                  setCalendarDate(selectedDate); // 同步日历显示月份到当前选中日期
+                  setShowDatePicker(!showDatePicker);
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-md text-xs font-medium hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
               >
                 <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,18 +433,17 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
               </button>
               
               {showDatePicker && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-3">
-                  <input
-                    type="date"
-                    value={format(selectedDate, 'yyyy-MM-dd')}
-                    onChange={(e) => {
-                      const newDate = new Date(e.target.value);
-                      onDateChange(newDate);
-                      setShowDatePicker(false);
-                    }}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                <>
+                  {/* 遮罩层，点击关闭日历 */}
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowDatePicker(false)}
                   />
-                </div>
+                  {/* 日历弹窗 */}
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-3">
+                    {renderCalendar()}
+                  </div>
+                </>
               )}
             </div>
           </div>

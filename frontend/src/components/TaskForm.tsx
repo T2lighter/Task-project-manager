@@ -117,12 +117,13 @@ const TaskForm: React.FC<TaskFormProps> = ({
     });
   }, []);
 
-  const handleSubmit = React.useCallback((e: React.FormEvent) => {
+  const handleSubmit = React.useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     // 如果截止日期为空，则使用创建日期作为截止日期
     const finalDueDate = formData.dueDate || formData.createdAt;
     
+    // 提交任务数据
     onSubmit({
       ...formData,
       dueDate: finalDueDate ? new Date(finalDueDate) : undefined,

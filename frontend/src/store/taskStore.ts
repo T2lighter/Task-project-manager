@@ -5,42 +5,61 @@ import { createSubtask, getSubtasks, getMainTasks } from '../services/subtaskSer
 
 interface TaskState {
   tasks: Task[];
+  loading: boolean;
+  error: string | null;
+  
+  // 基础任务操作
   fetchTasks: () => Promise<void>;
   createTask: (task: Omit<Task, 'id' | 'userId'>) => Promise<void>;
   updateTask: (taskId: number, task: Omit<Task, 'id' | 'userId'>) => Promise<void>;
   deleteTask: (taskId: number) => Promise<void>;
+  copyTask: (taskId: number) => Promise<void>;
   
   // 子任务相关方法
   createSubtask: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => Promise<void>;
   getSubtasks: (parentTaskId: number) => Promise<Task[]>;
   fetchMainTasks: () => Promise<void>;
+  
+  // 工具方法
+  clearError: () => void;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  loading: false,
+  error: null,
   
   fetchTasks: async () => {
-    console.log('TaskStore: fetchTasks 被调用');
     try {
+      set({ loading: true, error: null });
       const response = await api.get('/tasks');
-      console.log('TaskStore: API响应成功，任务数量:', response.data.length);
-      set({ tasks: response.data });
+      set({ tasks: response.data, loading: false });
     } catch (error) {
-      console.error('TaskStore: fetchTasks 失败:', error);
+      const errorMessage = error instanceof Error ? error.message : '获取任务列表失败';
+      set({ error: errorMessage, loading: false });
       throw error;
     }
   },
   
   createTask: async (task) => {
-    const response = await api.post('/tasks', task);
-    set((state) => ({ tasks: [...state.tasks, response.data] }));
+    try {
+      set({ loading: true, error: null });
+      const response = await api.post('/tasks', task);
+      set((state) => ({ 
+        tasks: [...state.tasks, response.data], 
+        loading: false 
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '创建任务失败';
+      set({ error: errorMessage, loading: false });
+      throw error;
+    }
   },
   
   updateTask: async (taskId, task) => {
     try {
-      console.log('TaskStore: 开始更新任务', taskId, task);
+      set({ loading: true, error: null });
       const response = await api.put(`/tasks/${taskId}`, task);
-      console.log('TaskStore: 更新响应:', response.data);
       
       set((state) => {
         const updatedTasks = state.tasks.map((t) => {
@@ -60,52 +79,104 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           }
           return t;
         });
-        console.log('TaskStore: 任务状态已更新，新的任务数量:', updatedTasks.length);
-        return { tasks: updatedTasks };
+        
+        return { tasks: updatedTasks, loading: false };
       });
     } catch (error) {
-      console.error('TaskStore: 更新任务失败:', error);
+      const errorMessage = error instanceof Error ? error.message : '更新任务失败';
+      set({ error: errorMessage, loading: false });
       throw error;
     }
   },
   
   deleteTask: async (taskId) => {
-    await api.delete(`/tasks/${taskId}`);
-    set((state) => ({
-      tasks: state.tasks
-        .filter((t) => t.id !== taskId) // 移除主任务
-        .map((t) => ({
-          ...t,
-          // 同时从父任务的subtasks数组中移除子任务
-          subtasks: t.subtasks ? t.subtasks.filter((subtask) => subtask.id !== taskId) : t.subtasks
-        }))
-    }));
+    try {
+      set({ loading: true, error: null });
+      await api.delete(`/tasks/${taskId}`);
+      
+      set((state) => ({
+        tasks: state.tasks
+          .filter((t) => t.id !== taskId) // 移除主任务
+          .map((t) => ({
+            ...t,
+            // 同时从父任务的subtasks数组中移除子任务
+            subtasks: t.subtasks ? t.subtasks.filter((subtask) => subtask.id !== taskId) : t.subtasks
+          })),
+        loading: false
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '删除任务失败';
+      set({ error: errorMessage, loading: false });
+      throw error;
+    }
+  },
+
+  copyTask: async (taskId) => {
+    try {
+      set({ loading: true, error: null });
+      const response = await api.post(`/tasks/${taskId}/copy`);
+      
+      // 将复制的任务添加到任务列表中
+      set((state) => ({ 
+        tasks: [...state.tasks, response.data],
+        loading: false
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '复制任务失败';
+      set({ error: errorMessage, loading: false });
+      throw error;
+    }
   },
 
   // 子任务相关方法
   createSubtask: async (parentTaskId, subtaskData) => {
-    const newSubtask = await createSubtask(parentTaskId, subtaskData);
-    
-    // 更新本地状态：将子任务添加到父任务的subtasks数组中
-    set((state) => ({
-      tasks: state.tasks.map((task) => {
-        if (task.id === parentTaskId) {
-          return {
-            ...task,
-            subtasks: [...(task.subtasks || []), newSubtask]
-          };
-        }
-        return task;
-      })
-    }));
+    try {
+      set({ loading: true, error: null });
+      const newSubtask = await createSubtask(parentTaskId, subtaskData);
+      
+      // 更新本地状态：将子任务添加到父任务的subtasks数组中
+      set((state) => ({
+        tasks: state.tasks.map((task) => {
+          if (task.id === parentTaskId) {
+            return {
+              ...task,
+              subtasks: [...(task.subtasks || []), newSubtask]
+            };
+          }
+          return task;
+        }),
+        loading: false
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '创建子任务失败';
+      set({ error: errorMessage, loading: false });
+      throw error;
+    }
   },
 
   getSubtasks: async (parentTaskId) => {
-    return await getSubtasks(parentTaskId);
+    try {
+      return await getSubtasks(parentTaskId);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '获取子任务失败';
+      set({ error: errorMessage });
+      throw error;
+    }
   },
 
   fetchMainTasks: async () => {
-    const mainTasks = await getMainTasks();
-    set({ tasks: mainTasks });
+    try {
+      set({ loading: true, error: null });
+      const mainTasks = await getMainTasks();
+      set({ tasks: mainTasks, loading: false });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '获取主任务失败';
+      set({ error: errorMessage, loading: false });
+      throw error;
+    }
+  },
+
+  clearError: () => {
+    set({ error: null });
   }
 }));

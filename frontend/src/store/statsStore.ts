@@ -241,7 +241,7 @@ export const useStatsStore = create<StatsState>((set, get) => ({
 
       // 获取年度数据用于热力图
       try {
-        const yearTimeSeriesData = await getYearTimeSeriesData();
+        const yearTimeSeriesData = await getYearHeatmapData();
         set({ yearTimeSeriesData });
       } catch (error) {
         console.warn('年度时间序列数据获取失败:', error);

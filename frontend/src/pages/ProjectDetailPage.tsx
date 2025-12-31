@@ -6,9 +6,11 @@ import { Project, Task } from '../types';
 import TaskCard from '../components/TaskCard';
 import TaskForm from '../components/TaskForm';
 import TaskSelector from '../components/TaskSelector';
+import TaskRemover from '../components/TaskRemover';
 import ConfirmDialog from '../components/ConfirmDialog';
 import GanttChart from '../components/GanttChart';
 import ProjectNotes from '../components/ProjectNotes';
+import ProjectOKR from '../components/ProjectOKR';
 import { format } from 'date-fns';
 
 const ProjectDetailPage: React.FC = () => {
@@ -17,14 +19,16 @@ const ProjectDetailPage: React.FC = () => {
   const projectId = id ? parseInt(id) : null;
 
   const { projects, fetchProjects } = useProjectStore();
-  const { tasks, fetchTasks, createTask, updateTask, deleteTask, createSubtask } = useTaskStore();
+  const { tasks, fetchTasks, createTask, updateTask, deleteTask, createSubtask, copyTask } = useTaskStore();
 
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isTaskSelectorOpen, setIsTaskSelectorOpen] = useState(false); // 新增：任务选择器状态
+  const [isRemoveTaskSelectorOpen, setIsRemoveTaskSelectorOpen] = useState(false); // 新增：移除任务选择器状态
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'gantt'>('list'); // 新增：视图模式状态
+  const [activeTab, setActiveTab] = useState<'tasks' | 'okr' | 'notes'>('tasks'); // 新增：标签页状态
   
   // 删除确认对话框状态
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -57,6 +61,14 @@ const ProjectDetailPage: React.FC = () => {
 
   // 获取当前项目的主任务（排除子任务）
   const projectTasks = tasks.filter(task => task.projectId === projectId && !task.parentTaskId);
+  
+  // 调试：监听projectTasks变化
+  useEffect(() => {
+    console.log('ProjectDetailPage: projectTasks 更新了，数量:', projectTasks.length);
+    if (projectTasks.length > 0) {
+      console.log('ProjectDetailPage: 项目任务列表:', projectTasks.map(t => ({ id: t.id, title: t.title, projectId: t.projectId })));
+    }
+  }, [projectTasks]);
 
   // 按状态过滤任务
   const filteredTasks = projectTasks.filter(task => {
@@ -104,6 +116,17 @@ const ProjectDetailPage: React.FC = () => {
   const handleDeleteTaskWithConfirm = (task: Task) => {
     setTaskToDelete(task);
     setShowDeleteConfirm(true);
+  };
+
+  // 新增：处理任务复制
+  const handleCopyTask = async (task: Task) => {
+    try {
+      await copyTask(task.id);
+      console.log(`任务"${task.title}"复制成功`);
+    } catch (error) {
+      console.error('复制任务失败:', error);
+      alert('复制任务失败，请重试');
+    }
   };
 
   const handleConfirmDeleteTask = () => {
@@ -184,6 +207,64 @@ const ProjectDetailPage: React.FC = () => {
     }
   };
 
+  // 新增：处理移除任务（从项目中移除，但不删除任务）
+  const handleRemoveTasksFromProject = async (taskIds: number[]) => {
+    try {
+      console.log('开始从项目中移除任务:', { projectId, taskIds });
+      
+      // 显示当前项目任务数量
+      const currentProjectTasks = tasks.filter(task => task.projectId === projectId && !task.parentTaskId);
+      console.log('移除前项目任务数量:', currentProjectTasks.length);
+      
+      // 批量更新任务，将projectId设置为null
+      for (const taskId of taskIds) {
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          console.log(`移除前任务 ${taskId} 的项目ID:`, task.projectId);
+          
+          // 保持任务的其他属性不变，只将projectId设置为null
+          const updatedTaskData: Omit<Task, 'id' | 'userId'> = {
+            title: task.title,
+            description: task.description || '',
+            status: task.status,
+            urgency: task.urgency,
+            importance: task.importance,
+            dueDate: task.dueDate,
+            createdAt: task.createdAt,
+            categoryId: task.categoryId,
+            projectId: null as any // 明确设置为null，移除项目关联
+          };
+          
+          console.log(`准备移除任务 ${taskId} 的项目关联:`, updatedTaskData);
+          await updateTask(taskId, updatedTaskData);
+          console.log(`任务 ${taskId} 项目关联移除完成`);
+        } else {
+          console.warn(`未找到任务 ${taskId}`);
+        }
+      }
+      
+      console.log(`所有任务项目关联移除完成，开始刷新任务列表`);
+      
+      // 强制刷新任务列表 - 使用Promise确保完成
+      await fetchTasks();
+      console.log('任务列表刷新完成');
+      
+      // 验证移除结果
+      setTimeout(() => {
+        const updatedProjectTasks = tasks.filter(task => task.projectId === projectId && !task.parentTaskId);
+        console.log('移除后项目任务数量:', updatedProjectTasks.length);
+        console.log('移除的任务数量:', taskIds.length);
+        console.log('预期剩余任务数量:', currentProjectTasks.length - taskIds.length);
+      }, 500);
+      
+      console.log(`成功从项目中移除了 ${taskIds.length} 个任务`);
+      
+    } catch (error) {
+      console.error('从项目中移除任务失败:', error);
+      alert(`移除任务失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  };
+
   // 计算各种状态的任务数量
   const getTaskCount = (filterType: string) => {
     switch (filterType) {
@@ -244,15 +325,15 @@ const ProjectDetailPage: React.FC = () => {
   const statusConfig = getStatusConfig(currentProject.status);
 
   return (
-    <div className="space-y-6">
-      {/* 项目头部信息 - 紧凑布局 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div className="space-y-4">
+      {/* 项目头部信息 - 更紧凑布局 */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
         {/* 头部一行：返回按钮 + 项目信息居中 + 操作按钮 */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           {/* 左侧：返回按钮 */}
           <button
             onClick={() => navigate('/projects')}
-            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="inline-flex items-center gap-1 px-2 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 hover:text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             title="返回项目列表"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,50 +343,62 @@ const ProjectDetailPage: React.FC = () => {
           </button>
 
           {/* 中间：项目信息居中 */}
-          <div className="flex-1 text-center px-4">
-            <div className="flex items-center justify-center gap-3 mb-1">
-              <h1 className="text-xl font-bold text-gray-900">{currentProject.name}</h1>
-              <span className={`text-xs px-2 py-1 rounded-full ${statusConfig.color} flex items-center gap-1`}>
+          <div className="flex-1 text-center px-3">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <h1 className="text-lg font-bold text-gray-900">{currentProject.name}</h1>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig.color} flex items-center gap-1`}>
                 <span>{statusConfig.icon}</span>
                 <span>{statusConfig.text}</span>
               </span>
             </div>
             {currentProject.description && (
-              <p className="text-sm text-gray-600 max-w-md mx-auto">{currentProject.description}</p>
+              <p className="text-xs text-gray-600 max-w-md mx-auto truncate">{currentProject.description}</p>
             )}
           </div>
 
           {/* 右侧：操作按钮 */}
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <button
               onClick={() => setIsTaskFormOpen(true)}
-              className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all duration-200"
+              className="bg-blue-600 text-white px-2 py-1.5 rounded-md text-xs font-medium hover:bg-blue-700 transition-all duration-200"
             >
               创建任务
             </button>
             <button
               onClick={() => setIsTaskSelectorOpen(true)}
-              className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-all duration-200"
+              className="bg-green-600 text-white px-2 py-1.5 rounded-md text-xs font-medium hover:bg-green-700 transition-all duration-200"
             >
               添加任务
+            </button>
+            <button
+              onClick={() => setIsRemoveTaskSelectorOpen(true)}
+              className={`px-2 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                projectTasks.length === 0
+                  ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  : 'bg-red-600 text-white hover:bg-red-700'
+              }`}
+              disabled={projectTasks.length === 0}
+              title={projectTasks.length === 0 ? "当前项目没有任务可移除" : "从项目中移除任务"}
+            >
+              移除任务
             </button>
           </div>
         </div>
 
-        {/* 项目日期信息 - 紧凑显示 */}
-        <div className="flex justify-center gap-6 text-xs text-gray-500 mb-3">
+        {/* 项目日期信息 - 更紧凑显示 */}
+        <div className="flex justify-center gap-4 text-xs text-gray-500 mb-2">
           {currentProject.startDate && (
-            <span>开始: {format(new Date(currentProject.startDate), 'yyyy-MM-dd')}</span>
+            <span>开始: {format(new Date(currentProject.startDate), 'MM-dd')}</span>
           )}
           {currentProject.endDate && (
-            <span>结束: {format(new Date(currentProject.endDate), 'yyyy-MM-dd')}</span>
+            <span>结束: {format(new Date(currentProject.endDate), 'MM-dd')}</span>
           )}
           {currentProject.createdAt && (
-            <span>创建: {format(new Date(currentProject.createdAt), 'MM-dd HH:mm')}</span>
+            <span>创建: {format(new Date(currentProject.createdAt), 'MM-dd')}</span>
           )}
         </div>
 
-        {/* 项目进度 - 紧凑显示 */}
+        {/* 项目进度 - 更紧凑显示 */}
         {totalTasks > 0 && (
           <div>
             <div className="flex justify-between items-center mb-1">
@@ -314,9 +407,9 @@ const ProjectDetailPage: React.FC = () => {
                 {completedTasks}/{totalTasks} ({progress}%)
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
               <div 
-                className={`h-2 rounded-full transition-all duration-300 ${
+                className={`h-1.5 rounded-full transition-all duration-300 ${
                   progress === 100 ? 'bg-green-500' : 'bg-blue-500'
                 }`}
                 style={{ width: `${progress}%` }}
@@ -327,141 +420,191 @@ const ProjectDetailPage: React.FC = () => {
       </div>
 
       {/* 任务筛选和列表 */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        {/* 标签页导航 */}
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">项目任务</h2>
-          {/* 视图切换按钮 */}
           <div className="flex bg-gray-50 rounded-lg p-1">
             <button
-              onClick={() => setViewMode('list')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                viewMode === 'list'
+              onClick={() => setActiveTab('tasks')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'tasks'
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              📋 列表视图
+              📋 任务管理
             </button>
             <button
-              onClick={() => setViewMode('gantt')}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                viewMode === 'gantt'
+              onClick={() => setActiveTab('okr')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'okr'
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              📊 甘特图
+              🎯 OKR管理
+            </button>
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'notes'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              📝 项目记录
             </button>
           </div>
-        </div>
-        
-        {/* 筛选按钮 - 只在列表视图中显示 */}
-        {viewMode === 'list' && (
-          <div className="flex flex-wrap gap-2 mb-6">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${
-                filter === 'all' 
-                  ? 'bg-indigo-100 text-indigo-800' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              全部任务 ({getTaskCount('all')})
-            </button>
-            <button
-              onClick={() => setFilter('pending')}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${
-                filter === 'pending' 
-                  ? 'bg-yellow-100 text-yellow-800' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              待办 ({getTaskCount('pending')})
-            </button>
-            <button
-              onClick={() => setFilter('in-progress')}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${
-                filter === 'in-progress' 
-                  ? 'bg-blue-100 text-blue-800' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              进行中 ({getTaskCount('in-progress')})
-            </button>
-            <button
-              onClick={() => setFilter('completed')}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${
-                filter === 'completed' 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              已完成 ({getTaskCount('completed')})
-            </button>
-          </div>
-        )}
 
-        {/* 任务内容区域 */}
-        {viewMode === 'gantt' ? (
-          /* 甘特图视图 */
-          <GanttChart
-            tasks={projectTasks} // 使用所有项目任务，不受筛选影响
-            onTaskClick={handleEditTask}
-          />
-        ) : filteredTasks.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-gray-400 text-4xl mb-4">📝</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {filter === 'all' ? '还没有任务' : `没有${filter === 'pending' ? '待办' : filter === 'in-progress' ? '进行中' : '已完成'}的任务`}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {filter === 'all' ? '为这个项目添加第一个任务' : '切换到其他筛选条件查看任务'}
-            </p>
-            {filter === 'all' && (
-              <div className="flex gap-2 justify-center">
+          {/* 视图切换按钮 - 只在任务标签页显示 */}
+          {activeTab === 'tasks' && (
+            <div className="flex bg-gray-50 rounded-md p-0.5">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                📋 列表
+              </button>
+              <button
+                onClick={() => setViewMode('gantt')}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  viewMode === 'gantt'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                📊 甘特图
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 标签页内容 */}
+        {activeTab === 'tasks' && (
+          <>
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-semibold text-gray-800">项目任务</h2>
+            </div>
+            
+            {/* 筛选按钮 - 只在列表视图中显示 */}
+            {viewMode === 'list' && (
+              <div className="flex flex-wrap gap-1 mb-4">
                 <button
-                  onClick={() => setIsTaskFormOpen(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => setFilter('all')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    filter === 'all' 
+                      ? 'bg-indigo-100 text-indigo-800' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
                 >
-                  创建新任务
+                  全部 ({getTaskCount('all')})
                 </button>
                 <button
-                  onClick={() => setIsTaskSelectorOpen(true)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                  onClick={() => setFilter('pending')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    filter === 'pending' 
+                      ? 'bg-yellow-100 text-yellow-800' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
                 >
-                  添加现有任务
+                  待办 ({getTaskCount('pending')})
+                </button>
+                <button
+                  onClick={() => setFilter('in-progress')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    filter === 'in-progress' 
+                      ? 'bg-blue-100 text-blue-800' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  进行中 ({getTaskCount('in-progress')})
+                </button>
+                <button
+                  onClick={() => setFilter('completed')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    filter === 'completed' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  已完成 ({getTaskCount('completed')})
                 </button>
               </div>
             )}
-          </div>
-        ) : (
-          /* 列表视图 */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredTasks.map(task => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onEdit={handleEditTask}
-                onDelete={handleDeleteTaskWithConfirm}
-                compact={false}
-                showPriority={true}
-                showSubtasks={true} // 启用子任务显示
-                onCreateSubtask={handleCreateSubtask} // 添加子任务创建功能
-                showProject={false} // 项目详情页面不显示项目标签
+
+            {/* 任务内容区域 */}
+            {viewMode === 'gantt' ? (
+              /* 甘特图视图 */
+              <GanttChart
+                tasks={projectTasks} // 使用所有项目任务，不受筛选影响
+                onTaskClick={handleEditTask}
               />
-            ))}
-          </div>
+            ) : filteredTasks.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-gray-400 text-4xl mb-4">📝</div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {filter === 'all' ? '还没有任务' : `没有${filter === 'pending' ? '待办' : filter === 'in-progress' ? '进行中' : '已完成'}的任务`}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {filter === 'all' ? '为这个项目添加第一个任务' : '切换到其他筛选条件查看任务'}
+                </p>
+                {filter === 'all' && (
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={() => setIsTaskFormOpen(true)}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      创建新任务
+                    </button>
+                    <button
+                      onClick={() => setIsTaskSelectorOpen(true)}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      添加现有任务
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* 列表视图 */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredTasks.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTaskWithConfirm}
+                    onCopy={handleCopyTask}
+                    compact={false}
+                    showPriority={true}
+                    showSubtasks={true} // 启用子任务显示
+                    onCreateSubtask={handleCreateSubtask} // 添加子任务创建功能
+                    showProject={false} // 项目详情页面不显示项目标签
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'okr' && currentProject && (
+          <ProjectOKR project={currentProject} />
+        )}
+
+        {activeTab === 'notes' && currentProject && (
+          <ProjectNotes
+            project={currentProject}
+            onNotesChange={() => {
+              // 可选：当记录变化时刷新项目数据
+              fetchProjects();
+            }}
+          />
         )}
       </div>
-
-      {/* 项目记录与总结 */}
-      <ProjectNotes
-        project={currentProject}
-        onNotesChange={() => {
-          // 可选：当记录变化时刷新项目数据
-          fetchProjects();
-        }}
-      />
 
       {/* 任务表单弹窗 */}
       <TaskForm
@@ -482,6 +625,17 @@ const ProjectDetailPage: React.FC = () => {
           onSelectTasks={handleAddExistingTasks}
           currentProject={currentProject}
           title={`添加任务到"${currentProject.name}"`}
+        />
+      )}
+
+      {/* 任务移除器弹窗 */}
+      {currentProject && (
+        <TaskRemover
+          isOpen={isRemoveTaskSelectorOpen}
+          onClose={() => setIsRemoveTaskSelectorOpen(false)}
+          onRemoveTasks={handleRemoveTasksFromProject}
+          currentProject={currentProject}
+          title={`从"${currentProject.name}"中移除任务`}
         />
       )}
 

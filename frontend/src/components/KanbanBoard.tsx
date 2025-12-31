@@ -8,6 +8,7 @@ interface KanbanColumnProps {
   tasks: Task[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void; // 修改为接收Task对象
+  onCopyTask?: (task: Task) => void; // 新增：复制任务
   onDropTask: (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => void;
   onDragStart: (task: Task) => void;
   onCreateSubtask?: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => void; // 新增
@@ -19,6 +20,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   tasks,
   onEditTask,
   onDeleteTask,
+  onCopyTask, // 新增：复制任务回调
   onDropTask,
   onDragStart,
   onCreateSubtask
@@ -110,6 +112,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
               task={task}
               onEdit={onEditTask}
               onDelete={onDeleteTask}
+              onCopy={onCopyTask}
               onDragStart={onDragStart}
               onCreateSubtask={onCreateSubtask}
               compact={true}
@@ -128,6 +131,7 @@ interface KanbanBoardProps {
   tasks: Task[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void; // 修改为接收Task对象
+  onCopyTask?: (task: Task) => void; // 新增：复制任务
   onDropTask: (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => void;
   onDragStart: (task: Task) => void;
   onCreateSubtask?: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => void; // 新增
@@ -137,6 +141,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   tasks,
   onEditTask,
   onDeleteTask,
+  onCopyTask, // 新增：复制任务回调
   onDropTask,
   onDragStart,
   onCreateSubtask // 新增参数
@@ -180,6 +185,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         tasks={pendingTasks}
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
+        onCopyTask={onCopyTask}
         onDropTask={onDropTask}
         onDragStart={onDragStart}
         onCreateSubtask={onCreateSubtask}
@@ -190,6 +196,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         tasks={inProgressTasks}
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
+        onCopyTask={onCopyTask}
         onDropTask={onDropTask}
         onDragStart={onDragStart}
         onCreateSubtask={onCreateSubtask}
@@ -200,6 +207,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         tasks={completedTasks}
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
+        onCopyTask={onCopyTask}
         onDropTask={onDropTask}
         onDragStart={onDragStart}
         onCreateSubtask={onCreateSubtask}

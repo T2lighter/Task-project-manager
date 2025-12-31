@@ -197,6 +197,12 @@ const TodayInfo: React.FC<TodayInfoProps> = React.memo(({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
+            
+            {/* 年月显示 */}
+            <div className="px-4 py-2 text-lg font-semibold text-gray-800 min-w-[120px] text-center">
+              {todayData.currentYear}年{todayData.currentMonth}
+            </div>
+            
             <button
               onClick={onNextMonth}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"

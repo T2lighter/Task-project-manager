@@ -8,7 +8,8 @@ import {
   getTasksByQuadrantHandler,
   createNewSubtask,
   getTaskSubtasks,
-  getMainTasksHandler
+  getMainTasksHandler,
+  copyTaskHandler
 } from '../controllers/taskController';
 import { authMiddleware } from '../middleware/auth';
 
@@ -23,6 +24,7 @@ router.get('/quadrant', getTasksByQuadrantHandler);
 router.get('/:id', getTask);
 router.put('/:id', updateExistingTask);
 router.delete('/:id', deleteExistingTask);
+router.post('/:id/copy', copyTaskHandler); // 复制任务
 
 // 子任务相关路由
 router.post('/:parentTaskId/subtasks', createNewSubtask); // 创建子任务

@@ -8,7 +8,8 @@ import {
   getTasksByQuadrant,
   createSubtask,
   getSubtasks,
-  getMainTasks
+  getMainTasks,
+  copyTask
 } from '../services/taskService';
 
 export const createNewTask = async (req: Request, res: Response) => {
@@ -151,5 +152,27 @@ export const getMainTasksHandler = async (req: Request, res: Response) => {
     res.json(mainTasks);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+// 新增：复制任务
+export const copyTaskHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const taskId = parseInt(req.params.id);
+    
+    if (!taskId) {
+      return res.status(400).json({ message: '任务ID无效' });
+    }
+    
+    console.log(`复制任务请求: 用户 ${userId}, 任务ID ${taskId}`);
+    
+    const copiedTask = await copyTask(taskId, userId);
+    
+    console.log(`任务复制成功: 原任务ID ${taskId}, 新任务ID ${copiedTask?.id}`);
+    res.status(201).json(copiedTask);
+  } catch (error) {
+    console.error('复制任务时出错:', error);
+    res.status(400).json({ message: (error as Error).message });
   }
 };

@@ -10,8 +10,8 @@ interface GanttChartProps {
 const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) => {
   // 计算甘特图的时间范围和任务数据
   const ganttData = useMemo(() => {
-    // 过滤有日期的任务
-    const tasksWithDates = tasks.filter(task => task.createdAt && task.dueDate);
+    // 过滤有截止日期的任务
+    const tasksWithDates = tasks.filter(task => task.dueDate);
     
     if (tasksWithDates.length === 0) {
       return {
@@ -23,27 +23,54 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) => {
       };
     }
 
+    // 计算每个任务的开始和结束时间
+    const tasksWithCalculatedDates = tasksWithDates.map(task => {
+      const dueDate = new Date(task.dueDate!);
+      let startDate: Date;
+      
+      // 智能计算任务开始时间
+      if (task.createdAt) {
+        const createdDate = new Date(task.createdAt);
+        // 如果创建时间在截止日期之前，使用创建时间作为开始时间
+        if (createdDate <= dueDate) {
+          startDate = createdDate;
+        } else {
+          // 如果创建时间在截止日期之后（异常情况），假设任务持续1天
+          startDate = new Date(dueDate.getTime() - 24 * 60 * 60 * 1000);
+        }
+      } else {
+        // 如果没有创建时间，假设任务持续3天（可以根据需要调整）
+        startDate = new Date(dueDate.getTime() - 3 * 24 * 60 * 60 * 1000);
+      }
+      
+      return {
+        ...task,
+        calculatedStartDate: startDate,
+        calculatedEndDate: dueDate
+      };
+    });
+
     // 找到最早和最晚的日期
-    const allDates = tasksWithDates.flatMap(task => [
-      new Date(task.createdAt!),
-      new Date(task.dueDate!)
+    const allDates = tasksWithCalculatedDates.flatMap(task => [
+      task.calculatedStartDate,
+      task.calculatedEndDate
     ]);
     
     const minDate = startOfDay(new Date(Math.min(...allDates.map(d => d.getTime()))));
-    const maxDate = endOfDay(new Date(Math.max(...allDates.map(d => d.getTime()))));
+    const maxDate = startOfDay(new Date(Math.max(...allDates.map(d => d.getTime()))));
     
-    // 添加一些缓冲天数
-    const startDate = addDays(minDate, -2);
-    const endDate = addDays(maxDate, 2);
+    // 减少缓冲天数，只在开始日期前添加1天，结束日期不添加缓冲
+    const startDate = addDays(minDate, -1);
+    const endDate = maxDate; // 不添加结束缓冲
     const totalDays = differenceInDays(endDate, startDate) + 1;
 
     // 生成日期范围
     const dateRange = Array.from({ length: totalDays }, (_, i) => addDays(startDate, i));
 
     // 计算每个任务的甘特图数据
-    const ganttTasks = tasksWithDates.map(task => {
-      const taskStart = startOfDay(new Date(task.createdAt!));
-      const taskEnd = startOfDay(new Date(task.dueDate!));
+    const ganttTasks = tasksWithCalculatedDates.map(task => {
+      const taskStart = startOfDay(task.calculatedStartDate);
+      const taskEnd = startOfDay(task.calculatedEndDate);
       
       const startOffset = differenceInDays(taskStart, startDate);
       const duration = differenceInDays(taskEnd, taskStart) + 1;
@@ -94,25 +121,28 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) => {
           <div className="text-gray-400 text-4xl mb-4">📊</div>
           <h4 className="text-lg font-medium text-gray-900 mb-2">暂无甘特图数据</h4>
           <p className="text-gray-600">
-            需要任务有创建日期和截止日期才能显示甘特图
+            需要任务有截止日期才能显示甘特图
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            任务开始时间将根据创建时间智能计算，如果没有创建时间则默认为截止日期前3天
           </p>
         </div>
       </div>
     );
   }
 
-  const dayWidth = Math.max(30, Math.min(60, 800 / ganttData.totalDays)); // 动态计算每天的宽度
+  const dayWidth = Math.max(40, Math.min(80, 1000 / ganttData.totalDays)); // 优化每天的宽度计算
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">项目甘特图</h3>
       
       <div className="overflow-x-auto">
-        <div className="min-w-max">
+        <div style={{ width: `${48 * 4 + ganttData.totalDays * dayWidth}px` }}>
           {/* 时间轴头部 */}
           <div className="flex mb-2">
             <div className="w-48 flex-shrink-0"></div> {/* 任务名称列的占位 */}
-            <div className="flex">
+            <div className="flex" style={{ width: `${ganttData.totalDays * dayWidth}px` }}>
               {ganttData.dateRange.map((date, index) => (
                 <div
                   key={index}
@@ -140,17 +170,21 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) => {
                     {task.title}
                   </div>
                   <div className="text-xs text-gray-500">
-                    {format(new Date(task.createdAt!), 'MM/dd')} - {format(new Date(task.dueDate!), 'MM/dd')}
+                    {format(task.calculatedStartDate, 'MM/dd')} - {format(task.calculatedEndDate, 'MM/dd')}
                   </div>
                 </div>
 
                 {/* 甘特图条 */}
-                <div className="flex-1 relative h-8 bg-gray-50 border border-gray-200 rounded">
+                <div 
+                  className="relative h-8 bg-gray-50 border border-gray-200 rounded"
+                  style={{ width: `${ganttData.totalDays * dayWidth}px` }}
+                >
+                  {/* 任务条 - 使用绝对定位确保精确对齐 */}
                   <div
                     className={`absolute top-0 h-full rounded ${getTaskColor(task)} ${getPriorityBorder(task)} flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity`}
                     style={{
-                      left: `${(task.startOffset / ganttData.totalDays) * 100}%`,
-                      width: `${(task.duration / ganttData.totalDays) * 100}%`,
+                      left: `${task.startOffset * dayWidth}px`,
+                      width: `${task.duration * dayWidth}px`,
                       minWidth: '20px'
                     }}
                     onClick={() => onTaskClick?.(task)}
@@ -166,7 +200,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) => {
                     
                     {/* 任务文本 */}
                     <span className="text-white text-xs font-medium px-1 truncate">
-                      {task.duration > 3 ? task.title : ''}
+                      {task.duration > 2 ? task.title : ''}
                     </span>
                   </div>
                 </div>

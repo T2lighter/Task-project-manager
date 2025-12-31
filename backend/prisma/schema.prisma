@@ -18,6 +18,12 @@ model User {
   Category    Category[]
   projects    Project[]
   projectNotes ProjectNote[] // 新增：项目记录关系
+  objectives  Objective[]   // 新增：OKR目标关系
+  keyResults  KeyResult[]   // 新增：关键结果关系
+  keyResultUpdates KeyResultUpdate[] // 新增：关键结果更新关系
+  resourceRequirements ResourceRequirement[] // 新增：资源需求关系
+  executionPlans ExecutionPlan[] // 新增：执行计划关系
+  actionChecks ActionCheck[] // 新增：行动检查关系
 }
 
 model Task {
@@ -66,12 +72,13 @@ model Project {
   user        User          @relation(fields: [userId], references: [id])
   tasks       Task[]
   notes       ProjectNote[] // 新增：项目记录列表
+  objectives  Objective[]   // 新增：项目OKR目标列表
 }
 
 model ProjectNote {
   id        Int      @id @default(autoincrement())
   title     String
-  content   String   @db.Text // 明确指定为Text类型，支持长文本
+  content   String   // SQLite中String已经支持长文本
   type      String   @default("note") // note, summary, meeting, issue, etc.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -79,4 +86,94 @@ model ProjectNote {
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
+}
+
+// OKR相关模型
+model Objective {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String?
+  status      String      @default("draft") // draft, active, completed, cancelled
+  progress    Int         @default(0) // 0-100
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  projectId   Int
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id])
+  keyResults  KeyResult[] // 关键结果列表
+  resourceRequirements ResourceRequirement[] // 资源需求列表
+  executionPlans ExecutionPlan[] // 执行计划列表
+  actionChecks ActionCheck[] // 行动检查列表
+}
+
+model KeyResult {
+  id           Int               @id @default(autoincrement())
+  description  String?           // 描述
+  status       String            @default("not-started") // not-started, in-progress, completed, at-risk
+  progress     Int               @default(0) // 0-100
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  objectiveId  Int
+  objective    Objective         @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User              @relation(fields: [userId], references: [id])
+  updates      KeyResultUpdate[] // 更新记录
+}
+
+model KeyResultUpdate {
+  id           Int       @id @default(autoincrement())
+  progress     Int       // 进度 0-100
+  note         String?   // 更新说明
+  createdAt    DateTime  @default(now())
+  keyResultId  Int
+  keyResult    KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id])
+}
+// 资源需求模型 (简化版本)
+model ResourceRequirement {
+  id            Int       @id @default(autoincrement())
+  title         String
+  description   String?
+  type          String    @default("other") // human, financial, material, technical, other
+  status        String    @default("requested") // requested, approved, allocated, completed
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  objectiveId   Int
+  objective     Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id])
+}
+
+// 执行计划模型 (简化版本)
+model ExecutionPlan {
+  id           Int       @id @default(autoincrement())
+  title        String
+  description  String?
+  phase        String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  objectiveId  Int
+  objective    Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id])
+}
+
+// 行动检查模型 (简化版本)
+model ActionCheck {
+  id             Int       @id @default(autoincrement())
+  title          String
+  description    String?
+  checkType      String    @default("weekly") // daily, weekly, monthly, milestone, custom
+  criteria       String?   // 存储为JSON字符串的checklist
+  status         String    @default("pending") // pending, in-progress, completed, failed
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  objectiveId    Int
+  objective      Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  userId         Int
+  user           User      @relation(fields: [userId], references: [id])
 }

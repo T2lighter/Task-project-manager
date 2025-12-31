@@ -7,6 +7,7 @@ import categoryRoutes from './routes/categoryRoutes';
 import statsRoutes from './routes/statsRoutes';
 import projectRoutes from './routes/projectRoutes';
 import projectNoteRoutes from './routes/projectNoteRoutes';
+import okrRoutes from './routes/okrRoutes';
 
 // 配置环境变量
 dotenv.config();
@@ -16,7 +17,11 @@ const PORT = process.env.PORT || 5000;
 
 // 中间件
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:5174', // 添加备用端口
+    'http://localhost:3000'  // 添加常用端口
+  ],
   credentials: true
 }));
 app.use(express.json());
@@ -37,6 +42,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api', projectNoteRoutes); // 项目记录路由
+app.use('/api', okrRoutes); // OKR路由
 
 // 启动服务器
 app.listen(PORT, () => {
@@ -49,5 +55,6 @@ app.listen(PORT, () => {
   console.log(`   - 统计: /api/stats`);
   console.log(`   - 项目: /api/projects`);
   console.log(`   - 项目记录: /api/projects/:id/notes`);
+  console.log(`   - OKR: /api/objectives, /api/key-results`);
   console.log(`   - 健康检查: /api/health`);
 });

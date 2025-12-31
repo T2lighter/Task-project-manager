@@ -5,27 +5,110 @@ import KanbanBoard from '../components/KanbanBoard';
 import TaskForm from '../components/TaskForm';
 import TaskCard from '../components/TaskCard';
 import ConfirmDialog from '../components/ConfirmDialog';
+import CustomLabelManager from '../components/CustomLabelManager';
+import PersonalizedView from '../components/PersonalizedView';
 import { useTaskStore } from '../store/taskStore';
+import { useLabelStore } from '../store/labelStore';
 import { Task } from '../types';
 
 const TasksPage: React.FC = () => {
-  const { tasks, fetchTasks, createTask, updateTask, deleteTask, createSubtask } = useTaskStore();
+  const { tasks, fetchTasks, createTask, updateTask, deleteTask, createSubtask, copyTask, setTaskLabels } = useTaskStore();
+  const { 
+    labels, 
+    loading: labelsLoading,
+    fetchLabels, 
+    createLabel, 
+    updateLabel, 
+    deleteLabel,
+    assignLabelToTask,
+    removeLabelFromTask,
+    updateTaskLabels
+  } = useLabelStore();
+  
   const location = useLocation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed' | 'overdue' | 'due-today' | 'this-week'>('all');
-  const [draggingTask, setDraggingTask] = useState<Task | null>(null);
-  const [viewMode, setViewMode] = useState<'quadrant' | 'kanban'>('quadrant'); // 新增：视图模式状态
+  const [viewMode, setViewMode] = useState<'quadrant' | 'kanban' | 'personalized'>('quadrant'); // 新增：个性化视图
   const [searchQuery, setSearchQuery] = useState(''); // 新增：搜索查询状态
+  const [showLabelManager, setShowLabelManager] = useState(false); // 新增：标签管理对话框状态
   
   // 新增：控制删除确认对话框的状态
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  
+  // 新增：任务列表拖拽状态
+  const [isDragOverTaskList, setIsDragOverTaskList] = useState(false);
 
 
   React.useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+    fetchLabels(); // 获取标签数据
+  }, [fetchTasks, fetchLabels]);
+
+  // 当切换到个性化展示时，重新同步任务标签数据
+  React.useEffect(() => {
+    if (viewMode === 'personalized' && labels.length > 0) {
+      console.log('切换到个性化展示，开始同步任务标签数据');
+      // 使用setTimeout确保在下一个事件循环中执行，避免状态更新冲突
+      const timeoutId = setTimeout(() => {
+        syncTaskLabels();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [viewMode, labels]); // 依赖viewMode和labels变化
+
+  // 同步任务标签数据的函数
+  const syncTaskLabels = React.useCallback(() => {
+    if (labels.length === 0 || tasks.length === 0) return; // 如果数据还没加载完成，跳过
+    
+    try {
+      // 从本地存储获取任务标签映射
+      const taskLabelsMapping = JSON.parse(localStorage.getItem('task_labels_mapping') || '{}');
+      console.log('当前任务标签映射:', taskLabelsMapping);
+      
+      // 批量更新任务标签数据
+      const updates: Array<{ taskId: number; labels: any[] }> = [];
+      
+      tasks.forEach(task => {
+        const labelIds = taskLabelsMapping[task.id] || [];
+        const taskLabels = labelIds.map((labelId: number) => {
+          const label = labels.find(l => l.id === labelId);
+          if (label) {
+            return {
+              id: Date.now() + labelId + task.id, // 生成唯一ID
+              taskId: task.id,
+              labelId: labelId,
+              label: label
+            };
+          }
+          return null;
+        }).filter(Boolean); // 过滤掉null值
+        
+        // 检查是否需要更新
+        const currentLabelIds = (task.labels || []).map((tl: any) => tl.labelId).sort();
+        const newLabelIds = taskLabels.map((tl: any) => tl.labelId).sort();
+        
+        if (JSON.stringify(currentLabelIds) !== JSON.stringify(newLabelIds)) {
+          updates.push({ taskId: task.id, labels: taskLabels });
+        }
+      });
+      
+      // 批量执行更新
+      if (updates.length > 0) {
+        console.log(`需要更新 ${updates.length} 个任务的标签数据`);
+        updates.forEach(({ taskId, labels: taskLabels }) => {
+          console.log(`同步任务 ${taskId} 的标签数据:`, taskLabels);
+          setTaskLabels(taskId, taskLabels);
+        });
+      } else {
+        console.log('所有任务标签数据已是最新');
+      }
+    } catch (error) {
+      console.error('同步任务标签数据失败:', error);
+    }
+  }, [tasks, labels, setTaskLabels]);
 
   // 从location.state中获取筛选条件并应用
   React.useEffect(() => {
@@ -76,6 +159,18 @@ const TasksPage: React.FC = () => {
     }
   };
 
+  // 新增：处理任务复制
+  const handleCopyTask = async (task: Task) => {
+    try {
+      await copyTask(task.id);
+      // 显示成功提示
+      console.log(`任务"${task.title}"复制成功`);
+    } catch (error) {
+      console.error('复制任务失败:', error);
+      alert('复制任务失败，请重试');
+    }
+  };
+
   // 新增：处理创建子任务
   const handleCreateSubtask = async (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => {
     try {
@@ -106,6 +201,186 @@ const TasksPage: React.FC = () => {
     setTaskToDelete(null);
   };
 
+  // 个性化标签相关处理函数
+  const handleAssignLabel = async (taskId: number, labelId: number) => {
+    try {
+      await assignLabelToTask(taskId, labelId);
+      
+      // 直接更新任务的标签数据
+      const task = tasks.find(t => t.id === taskId);
+      const label = labels.find(l => l.id === labelId);
+      
+      if (task && label) {
+        // 检查是否已经有这个标签
+        const existingLabel = task.labels?.find(tl => tl.labelId === labelId);
+        if (!existingLabel) {
+          const newTaskLabel = {
+            id: Date.now(),
+            taskId,
+            labelId,
+            label
+          };
+          
+          const updatedLabels = [...(task.labels || []), newTaskLabel];
+          setTaskLabels(taskId, updatedLabels);
+          console.log('标签分配成功，任务已更新');
+        }
+      }
+    } catch (error) {
+      console.error('分配标签失败:', error);
+    }
+  };
+
+  const handleRemoveLabel = async (taskId: number, labelId: number) => {
+    try {
+      await removeLabelFromTask(taskId, labelId);
+      
+      // 直接更新任务的标签数据
+      const task = tasks.find(t => t.id === taskId);
+      
+      if (task && task.labels) {
+        const updatedLabels = task.labels.filter(tl => tl.labelId !== labelId);
+        setTaskLabels(taskId, updatedLabels);
+        console.log('标签移除成功，任务已更新');
+      }
+    } catch (error) {
+      console.error('移除标签失败:', error);
+    }
+  };
+
+  const handleUpdateTaskLabels = async (taskId: number, labelIds: number[]) => {
+    try {
+      await updateTaskLabels(taskId, labelIds);
+      
+      // 直接更新任务的标签数据
+      const task = tasks.find(t => t.id === taskId);
+      
+      if (task) {
+        const updatedLabels = labelIds.map(labelId => {
+          const label = labels.find(l => l.id === labelId);
+          return {
+            id: Date.now() + labelId,
+            taskId,
+            labelId,
+            label
+          };
+        }).filter(tl => tl.label); // 过滤掉找不到的标签
+        
+        setTaskLabels(taskId, updatedLabels);
+        console.log('任务标签更新成功');
+      }
+    } catch (error) {
+      console.error('更新任务标签失败:', error);
+    }
+  };
+
+  // 处理拖拽任务到标签区域
+  const handleDropTaskToLabel = async (task: Task, labelId: number) => {
+    try {
+      // 检查任务是否已经有这个标签
+      const existingLabel = task.labels?.find(tl => tl.labelId === labelId);
+      if (existingLabel) {
+        console.log('任务已经有这个标签了');
+        return;
+      }
+
+      await assignLabelToTask(task.id, labelId);
+      
+      // 添加新标签到现有标签列表中（不替换）
+      const label = labels.find(l => l.id === labelId);
+      
+      if (label) {
+        const newTaskLabel = {
+          id: Date.now(),
+          taskId: task.id,
+          labelId,
+          label
+        };
+        
+        // 添加到现有标签列表，允许多个标签
+        const currentLabels = task.labels || [];
+        const updatedLabels = [...currentLabels, newTaskLabel];
+        setTaskLabels(task.id, updatedLabels);
+        console.log(`任务"${task.title}"已添加到标签"${label.name}"，当前标签数量: ${updatedLabels.length}`);
+      }
+    } catch (error) {
+      console.error('拖拽分配标签失败:', error);
+    }
+  };
+
+  // 处理从标签拖拽任务到任务列表（部分取消标签关联）
+  const handleDropTaskToTaskList = async (task: Task) => {
+    try {
+      console.log(`任务"${task.title}"被拖拽到任务列表`);
+      
+      // 检查是否从特定标签拖拽
+      const dragFromLabelData = sessionStorage.getItem('dragFromLabel');
+      
+      if (dragFromLabelData) {
+        // 从特定标签拖拽，只移除该标签
+        const { taskId, labelId } = JSON.parse(dragFromLabelData);
+        
+        if (taskId === task.id) {
+          console.log(`从标签 ${labelId} 拖拽任务 ${taskId}，只移除该标签关联`);
+          
+          // 从本地存储中移除特定标签关联
+          const taskLabelsMapping = JSON.parse(localStorage.getItem('task_labels_mapping') || '{}');
+          const currentLabels = taskLabelsMapping[task.id] || [];
+          const updatedLabels = currentLabels.filter((id: number) => id !== labelId);
+          
+          if (updatedLabels.length > 0) {
+            taskLabelsMapping[task.id] = updatedLabels;
+          } else {
+            delete taskLabelsMapping[task.id];
+          }
+          
+          localStorage.setItem('task_labels_mapping', JSON.stringify(taskLabelsMapping));
+          
+          // 移除特定标签
+          await removeLabelFromTask(task.id, labelId);
+          
+          // 更新任务状态，移除特定标签
+          const currentTaskLabels = task.labels || [];
+          const updatedTaskLabels = currentTaskLabels.filter(tl => tl.labelId !== labelId);
+          setTaskLabels(task.id, updatedTaskLabels);
+          
+          const labelName = labels.find(l => l.id === labelId)?.name || '未知标签';
+          console.log(`任务"${task.title}"已从标签"${labelName}"中移除，剩余标签数量: ${updatedTaskLabels.length}`);
+        }
+        
+        // 清理sessionStorage
+        sessionStorage.removeItem('dragFromLabel');
+      } else {
+        // 从任务列表拖拽，移除所有标签（保持原有逻辑）
+        console.log('从任务列表拖拽，移除所有标签');
+        
+        const currentLabels = task.labels || [];
+        
+        if (currentLabels.length === 0) {
+          console.log('任务没有标签，无需处理');
+          return;
+        }
+        
+        // 从本地存储中移除任务的所有标签关联
+        const taskLabelsMapping = JSON.parse(localStorage.getItem('task_labels_mapping') || '{}');
+        delete taskLabelsMapping[task.id];
+        localStorage.setItem('task_labels_mapping', JSON.stringify(taskLabelsMapping));
+        
+        // 移除任务的所有标签
+        for (const taskLabel of currentLabels) {
+          await removeLabelFromTask(task.id, taskLabel.labelId);
+        }
+        
+        // 更新任务状态，清空标签
+        setTaskLabels(task.id, []);
+        
+        console.log(`任务"${task.title}"的所有标签已取消`);
+      }
+    } catch (error) {
+      console.error('取消任务标签关联失败:', error);
+    }
+  };
+
 
 
   // 处理从表单中删除任务
@@ -123,14 +398,13 @@ const TasksPage: React.FC = () => {
   };
 
   const handleDragStartTask = (task: Task) => {
-    setDraggingTask(task);
+    // 拖拽开始时的处理逻辑（如果需要的话）
   };
 
   const handleDropTask = (task: Task, newUrgency: boolean, newImportance: boolean) => {
     // 验证任务数据完整性
     if (!task || !task.id) {
       console.error('无效的任务数据:', task);
-      setDraggingTask(null);
       return;
     }
     
@@ -154,11 +428,7 @@ const TasksPage: React.FC = () => {
         // 任务移动成功
       }).catch((error) => {
         console.error('移动任务失败:', error);
-      }).finally(() => {
-        setDraggingTask(null);
       });
-    } else {
-      setDraggingTask(null);
     }
   };
 
@@ -167,7 +437,6 @@ const TasksPage: React.FC = () => {
     // 验证任务数据完整性
     if (!task || !task.id) {
       console.error('无效的任务数据:', task);
-      setDraggingTask(null);
       return;
     }
     
@@ -191,11 +460,7 @@ const TasksPage: React.FC = () => {
         // 任务状态更新成功
       }).catch((error) => {
         console.error('更新任务状态失败:', error);
-      }).finally(() => {
-        setDraggingTask(null);
       });
-    } else {
-      setDraggingTask(null);
     }
   };
 
@@ -428,13 +693,6 @@ const TasksPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 拖拽状态指示器 */}
-      {draggingTask && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-          正在拖拽任务: {draggingTask.title}
-        </div>
-      )}
-
       {/* 任务表单弹窗 */}
       <TaskForm
         task={editingTask}
@@ -443,6 +701,7 @@ const TasksPage: React.FC = () => {
         onDelete={editingTask ? handleDeleteTaskFromForm : undefined}
         isOpen={isFormOpen}
         asModal={true}
+        onUpdateTaskLabels={handleUpdateTaskLabels}
       />
 
       {/* 左右布局 */}
@@ -450,22 +709,12 @@ const TasksPage: React.FC = () => {
         {/* 左侧：任务列表 */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow p-3">
-            <div className="flex justify-between items-center mb-3">
-              <h2 className="text-lg font-semibold text-gray-800">任务列表</h2>
-              <div className="flex gap-2">
-                {/* 添加任务按钮 */}
-                <button
-                  onClick={() => setIsFormOpen(true)}
-                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                >
-                  添加任务
-                </button>
-              </div>
-            </div>
-            
-            {/* 搜索框 */}
-            <div className="mb-3">
-              <div className="relative">
+            {/* 标题行：任务列表 + 搜索框 + 添加任务按钮 */}
+            <div className="flex items-center gap-3 mb-3">
+              <h2 className="text-lg font-semibold text-gray-800 flex-shrink-0">任务列表</h2>
+              
+              {/* 搜索框 */}
+              <div className="flex-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -473,15 +722,15 @@ const TasksPage: React.FC = () => {
                 </div>
                 <input
                   type="text"
-                  placeholder="搜索任务标题、描述、分类、项目... (Ctrl+F)"
+                  placeholder="搜索任务... (Ctrl+F)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white focus:bg-white shadow-sm"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-50 rounded-r-lg"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-100 rounded-r-lg transition-colors duration-200"
                     title="清除搜索 (ESC)"
                   >
                     <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -490,17 +739,27 @@ const TasksPage: React.FC = () => {
                   </button>
                 )}
               </div>
-              {searchQuery && (
-                <div className="mt-1 flex items-center justify-between text-xs">
-                  <span className="text-gray-500">
-                    找到 {filteredTasks.length} 个匹配的任务
-                  </span>
-                  <span className="text-gray-400">
-                    按 ESC 清除搜索
-                  </span>
-                </div>
-              )}
+              
+              {/* 添加任务按钮 */}
+              <button
+                onClick={() => setIsFormOpen(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex-shrink-0"
+              >
+                添加任务
+              </button>
             </div>
+            
+            {/* 搜索结果提示 */}
+            {searchQuery && (
+              <div className="mb-3 flex items-center justify-between text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <span className="text-blue-700 font-medium">
+                  找到 {filteredTasks.length} 个匹配的任务
+                </span>
+                <span className="text-blue-500">
+                  按 ESC 清除搜索
+                </span>
+              </div>
+            )}
             
             {/* 筛选按钮 */}
             <div className="flex flex-wrap gap-1 mb-3">
@@ -549,7 +808,47 @@ const TasksPage: React.FC = () => {
             </div>
             
             {/* 任务列表 */}
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+            <div 
+              className={`space-y-2 max-h-[600px] overflow-y-auto transition-all duration-200 ${
+                isDragOverTaskList 
+                  ? 'bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg p-2' 
+                  : ''
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setIsDragOverTaskList(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                // 检查是否真正离开了任务列表区域
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const x = e.clientX;
+                const y = e.clientY;
+                
+                if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+                  setIsDragOverTaskList(false);
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragOverTaskList(false);
+                try {
+                  const taskData = e.dataTransfer.getData('text/plain');
+                  const task = JSON.parse(taskData) as Task;
+                  handleDropTaskToTaskList(task);
+                } catch (error) {
+                  console.error('拖拽任务到任务列表失败:', error);
+                }
+              }}
+            >
+              {/* 拖拽提示 */}
+              {isDragOverTaskList && (
+                <div className="text-center py-4 text-blue-600 font-medium">
+                  <div className="text-2xl mb-2">📋</div>
+                  <p>释放以取消任务的标签关联</p>
+                </div>
+              )}
               {filteredTasks.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-gray-400 text-4xl mb-4">
@@ -574,6 +873,7 @@ const TasksPage: React.FC = () => {
                     task={task}
                     onEdit={handleEditTask}
                     onDelete={handleDeleteTaskWithConfirm}
+                    onCopy={handleCopyTask}
                     onDragStart={handleDragStartTask}
                     showSubtasks={true} // 启用子任务显示
                     onCreateSubtask={handleCreateSubtask} // 传递子任务创建函数
@@ -587,7 +887,7 @@ const TasksPage: React.FC = () => {
         {/* 右侧：视图区域 */}
         <div className="lg:col-span-2">
           {/* 视图切换按钮 */}
-          <div className="flex justify-center mb-3">
+          <div className="flex justify-between items-center mb-3">
             <div className="bg-gray-50 rounded-xl p-1 flex shadow-sm border border-gray-200">
               <button
                 onClick={() => setViewMode('quadrant')}
@@ -609,7 +909,30 @@ const TasksPage: React.FC = () => {
               >
                 看板展示
               </button>
+              <button
+                onClick={() => setViewMode('personalized')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                  viewMode === 'personalized'
+                    ? 'bg-blue-600 text-white shadow-md transform scale-105'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+              >
+                个性化展示
+              </button>
             </div>
+            
+            {/* 标签管理按钮 */}
+            {viewMode === 'personalized' && (
+              <button
+                onClick={() => setShowLabelManager(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                管理标签
+              </button>
+            )}
           </div>
 
           {/* 条件渲染视图 */}
@@ -623,6 +946,7 @@ const TasksPage: React.FC = () => {
                 tasks={quadrant1Tasks}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTaskWithConfirm}
+                onCopyTask={handleCopyTask}
                 onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
                 onCreateSubtask={handleCreateSubtask}
@@ -634,6 +958,7 @@ const TasksPage: React.FC = () => {
                 tasks={quadrant2Tasks}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTaskWithConfirm}
+                onCopyTask={handleCopyTask}
                 onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
                 onCreateSubtask={handleCreateSubtask}
@@ -645,6 +970,7 @@ const TasksPage: React.FC = () => {
                 tasks={quadrant3Tasks}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTaskWithConfirm}
+                onCopyTask={handleCopyTask}
                 onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
                 onCreateSubtask={handleCreateSubtask}
@@ -656,20 +982,34 @@ const TasksPage: React.FC = () => {
                 tasks={quadrant4Tasks}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTaskWithConfirm}
+                onCopyTask={handleCopyTask}
                 onDropTask={handleDropTask}
                 onDragStart={handleDragStartTask}
                 onCreateSubtask={handleCreateSubtask}
               />
             </div>
-          ) : (
+          ) : viewMode === 'kanban' ? (
             // 看板视图
             <KanbanBoard
               tasks={filterTasksBySearch(tasks.filter(task => !task.parentTaskId), searchQuery)} // 只传递主任务并应用搜索
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTaskWithConfirm}
+              onCopyTask={handleCopyTask}
               onDropTask={handleKanbanDropTask}
               onDragStart={handleDragStartTask}
               onCreateSubtask={handleCreateSubtask}
+            />
+          ) : (
+            // 个性化展示视图
+            <PersonalizedView
+              tasks={filterTasksBySearch(tasks.filter(task => !task.parentTaskId), searchQuery)}
+              labels={labels}
+              onEditTask={handleEditTask}
+              onDeleteTask={handleDeleteTaskWithConfirm}
+              onCopyTask={handleCopyTask}
+              onDragStart={handleDragStartTask}
+              onCreateSubtask={handleCreateSubtask}
+              onDropTask={handleDropTaskToLabel}
             />
           )}
         </div>
@@ -685,6 +1025,17 @@ const TasksPage: React.FC = () => {
         confirmText="删除"
         cancelText="取消"
         confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
+
+      {/* 标签管理对话框 */}
+      <CustomLabelManager
+        isOpen={showLabelManager}
+        onClose={() => setShowLabelManager(false)}
+        labels={labels}
+        loading={labelsLoading}
+        onCreateLabel={createLabel}
+        onUpdateLabel={updateLabel}
+        onDeleteLabel={deleteLabel}
       />
     </div>
   );

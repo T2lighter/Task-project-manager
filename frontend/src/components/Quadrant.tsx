@@ -9,6 +9,7 @@ interface QuadrantProps {
   tasks: Task[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void; // 修改为接收Task对象
+  onCopyTask?: (task: Task) => void; // 新增：复制任务
   onDropTask?: (task: Task, urgency: boolean, importance: boolean) => void;
   onDragStart?: (task: Task) => void;
   onCreateSubtask?: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => void; // 新增
@@ -21,6 +22,7 @@ const Quadrant: React.FC<QuadrantProps> = ({
   tasks,
   onEditTask,
   onDeleteTask,
+  onCopyTask, // 新增：复制任务回调
   onDropTask,
   onDragStart,
   onCreateSubtask
@@ -103,6 +105,7 @@ const Quadrant: React.FC<QuadrantProps> = ({
               task={task}
               onEdit={onEditTask}
               onDelete={onDeleteTask}
+              onCopy={onCopyTask}
               onDragStart={onDragStart}
               onCreateSubtask={onCreateSubtask}
               showPriority={false} // 四象限中不显示优先级，因为位置已经表示了优先级
