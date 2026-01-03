@@ -40,8 +40,8 @@ const loadLabelsFromStorage = (): CustomLabel[] => {
     console.warn('加载本地标签数据失败:', error);
   }
   
-  // 返回默认标签
-  return [
+  // 返回默认标签并保存到本地存储
+  const defaultLabels = [
     {
       id: 1,
       name: '对内标签',
@@ -70,6 +70,11 @@ const loadLabelsFromStorage = (): CustomLabel[] => {
       updatedAt: new Date()
     }
   ];
+  
+  // 保存默认标签到本地存储
+  saveLabelsToStorage(defaultLabels);
+  
+  return defaultLabels;
 };
 
 const saveLabelsToStorage = (labels: CustomLabel[]) => {
@@ -232,8 +237,6 @@ export const useLabelStore = create<LabelStore>((set) => ({
         mapping[taskId] = [...currentLabels, labelId];
         saveTaskLabelsMapping(mapping);
       }
-      
-      console.log(`分配标签 ${labelId} 到任务 ${taskId}`);
     } catch (error) {
       console.error('分配标签失败:', error);
       set({ error: error instanceof Error ? error.message : '分配标签失败' });

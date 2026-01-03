@@ -6,7 +6,8 @@ import {
   getYearHeatmapData,
   getCategoryStats,
   getProjectStats,
-  getProjectTaskStats
+  getProjectTaskStats,
+  getTaskDurationRanking
 } from '../services/statsService';
 
 export const getTaskStatsHandler = async (req: Request, res: Response) => {
@@ -110,6 +111,23 @@ export const getProjectTaskStatsHandler = async (req: Request, res: Response) =>
     res.json(stats);
   } catch (error) {
     console.error('获取项目任务统计失败:', error);
+    res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+export const getTaskDurationRankingHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: '用户未认证' });
+    }
+    
+    const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+    const ranking = await getTaskDurationRanking(userId, year);
+    res.json(ranking);
+  } catch (error) {
+    console.error('获取任务耗时排行失败:', error);
     res.status(500).json({ message: (error as Error).message });
   }
 };

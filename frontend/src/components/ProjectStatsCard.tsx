@@ -4,9 +4,16 @@ import { ProjectStats } from '../types';
 interface ProjectStatsCardProps {
   stats: ProjectStats;
   onProjectsClick?: () => void;
+  onStatusFilter?: (status: string) => void; // 新增：状态筛选回调
+  selectedStatus?: string; // 新增：当前选中的状态
 }
 
-const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({ stats, onProjectsClick }) => {
+const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({ 
+  stats, 
+  onProjectsClick, 
+  onStatusFilter,
+  selectedStatus = 'active' // 默认选中进行中
+}) => {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'active':
@@ -62,19 +69,36 @@ const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({ stats, onProjectsCl
           { key: 'cancelled', value: stats.cancelled }
         ].filter(item => item.value > 0).map(item => {
           const config = getStatusConfig(item.key);
+          const isSelected = selectedStatus === item.key;
+          
           return (
             <div key={item.key} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${config.color} flex items-center gap-1`}>
+                <button
+                  onClick={() => onStatusFilter?.(item.key)}
+                  className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 transition-all duration-200 ${
+                    isSelected 
+                      ? `${config.color} ring-2 ring-offset-1 ring-blue-400 shadow-md transform scale-105` 
+                      : `${config.color} hover:shadow-md hover:scale-105 cursor-pointer`
+                  }`}
+                  title={`点击筛选${config.text}项目`}
+                >
                   <span>{config.icon}</span>
                   <span>{config.text}</span>
-                </span>
+                </button>
               </div>
               <span className="text-sm font-medium text-gray-900">{item.value}</span>
             </div>
           );
         })}
       </div>
+
+      {/* 筛选提示 */}
+      {onStatusFilter && (
+        <div className="mt-4 text-xs text-gray-500 text-center">
+          点击状态标签筛选项目任务分布
+        </div>
+      )}
 
       {/* 进度条 */}
       {stats.total > 0 && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { TaskStats } from '../types';
 
 interface TaskStatusPieChartProps {
@@ -15,10 +15,10 @@ const COLORS = {
 
 const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats }) => {
   const data = [
-    { name: '已完成', value: stats.completed, color: COLORS.completed },
-    { name: '进行中', value: stats.inProgress, color: COLORS.inProgress },
-    { name: '待办', value: stats.pending, color: COLORS.pending },
-    { name: '逾期', value: stats.overdue, color: COLORS.overdue },
+    { name: '已完成', value: stats.completed, color: COLORS.completed, key: 'completed' },
+    { name: '进行中', value: stats.inProgress, color: COLORS.inProgress, key: 'inProgress' },
+    { name: '待办', value: stats.pending, color: COLORS.pending, key: 'pending' },
+    { name: '逾期', value: stats.overdue, color: COLORS.overdue, key: 'overdue' },
   ].filter(item => item.value > 0);
 
   const CustomTooltip = ({ active, payload }: any) => {
@@ -37,28 +37,68 @@ const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats }) => {
     return null;
   };
 
+  if (stats.total === 0) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 h-96 flex flex-col">
+        <h3 className="text-base font-semibold text-gray-800 mb-3">任务状态分布</h3>
+        <div className="flex-1 flex items-center justify-center text-gray-500">
+          暂无任务数据
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">任务状态分布</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-            outerRadius={80}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-        </PieChart>
-      </ResponsiveContainer>
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 h-96 flex flex-col">
+      <h3 className="text-base font-semibold text-gray-800 mb-3">任务状态分布</h3>
+      <div className="flex-1 flex items-center">
+        <div className="flex-1 relative">
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={45}
+                outerRadius={75}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          {/* 中心显示总数 */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+              <div className="text-xs text-gray-600">总数</div>
+            </div>
+          </div>
+        </div>
+        
+        {/* 右侧图例 */}
+        <div className="ml-4 space-y-2">
+          {data.map((item) => {
+            const percentage = ((item.value / stats.total) * 100).toFixed(0);
+            return (
+              <div key={item.key} className="flex items-center text-sm">
+                <div 
+                  className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                  style={{ backgroundColor: item.color }}
+                ></div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-gray-900 font-medium">{item.name}</div>
+                  <div className="text-gray-500 text-xs">{percentage}%</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

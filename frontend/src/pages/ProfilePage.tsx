@@ -12,6 +12,7 @@ import TaskTrendOverview from '../components/TaskTrendOverview';
 import ProjectStatsCard from '../components/ProjectStatsCard';
 import ProjectTaskStatsChart from '../components/ProjectTaskStatsChart';
 import ConfirmDialog from '../components/ConfirmDialog';
+import TaskDurationRanking from '../components/TaskDurationRanking';
 import UserInfoCard from '../components/UserInfoCard';
 
 // 名言接口类型定义
@@ -32,6 +33,7 @@ const ProfilePage: React.FC = () => {
     yearTimeSeriesData,
     projectStats, // 新增：项目统计
     projectTaskStats, // 新增：项目任务统计
+    taskDurationRanking, // 新增：任务耗时排行
     selectedPeriod,
     selectedDate,
     loading,
@@ -44,6 +46,7 @@ const ProfilePage: React.FC = () => {
     fetchYearHeatmapData,
     fetchProjectStats, // 新增：获取项目统计
     fetchProjectTaskStats, // 新增：获取项目任务统计
+    fetchTaskDurationRanking, // 新增：获取任务耗时排行
     clearError
   } = useStatsStore();
   
@@ -51,6 +54,9 @@ const ProfilePage: React.FC = () => {
 
   // 退出登录确认对话框状态
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  // 项目状态筛选状态
+  const [selectedProjectStatus, setSelectedProjectStatus] = useState<string>('active'); // 默认显示进行中的项目
   
   // 名言状态
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -213,24 +219,29 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     const initializeData = async () => {
       try {
+        console.log('ProfilePage: 开始初始化数据');
         // 优先加载核心数据
         await Promise.all([
           fetchTasks(),
-          fetchProjects(),
-          fetchAllStats()
+          fetchProjects()
         ]);
+        
+        // 然后加载统计数据
+        await fetchAllStats();
+        console.log('ProfilePage: 数据初始化完成');
       } catch (error) {
         console.error('ProfilePage: 初始化数据失败', error);
       }
     };
     
     initializeData();
-  }, [fetchTasks, fetchProjects, fetchAllStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 只在组件挂载时执行一次
 
-  // 当统计数据改变时重新获取数据
-  useEffect(() => {
-    fetchAllStats();
-  }, [fetchAllStats]);
+  // 当统计数据改变时重新获取数据 - 移除这个useEffect，避免重复调用
+  // useEffect(() => {
+  //   fetchAllStats();
+  // }, [fetchAllStats]);
 
   // 当时间周期或日期改变时重新获取时间序列数据
   useEffect(() => {
@@ -1078,8 +1089,8 @@ const ProfilePage: React.FC = () => {
         onDateChange={handleDateChange}
       />
 
-      {/* 图表区域 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 图表区域 - 三个组件并排显示 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 任务状态分布饼图 */}
         {taskStats && (
           <TaskStatusPieChart stats={taskStats} />
@@ -1089,6 +1100,13 @@ const ProfilePage: React.FC = () => {
         {quadrantStats && (
           <QuadrantPieChart stats={quadrantStats} />
         )}
+
+        {/* 任务耗时排行 */}
+        <TaskDurationRanking 
+          data={taskDurationRanking} 
+          year={selectedDate.getFullYear()}
+          onTaskClick={(taskId) => navigate('/tasks', { state: { highlightTaskId: taskId } })}
+        />
       </div>
 
       {/* 分类统计图 */}
@@ -1099,19 +1117,59 @@ const ProfilePage: React.FC = () => {
       {/* 项目统计区域 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 项目统计卡片 */}
-        {projectStats && (
+        {projectStats ? (
           <ProjectStatsCard 
             stats={projectStats} 
             onProjectsClick={() => navigate('/projects')}
+            onStatusFilter={setSelectedProjectStatus}
+            selectedStatus={selectedProjectStatus}
           />
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">项目概览</h3>
+            <div className="text-center py-8">
+              <div className="text-gray-400 text-4xl mb-4">📊</div>
+              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                正在加载项目统计数据...
+              </h4>
+              <button
+                onClick={() => {
+                  console.log('手动刷新项目统计数据');
+                  fetchProjectStats();
+                  fetchProjectTaskStats();
+                  fetchTaskDurationRanking();
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+              >
+                刷新数据
+              </button>
+            </div>
+          </div>
         )}
         
         {/* 项目任务统计图表 */}
-        {projectTaskStats.length > 0 && (
+        {projectTaskStats.length > 0 ? (
           <ProjectTaskStatsChart 
             data={projectTaskStats} 
             onProjectClick={(projectId) => navigate(`/projects/${projectId}`)}
+            selectedStatus={selectedProjectStatus}
           />
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">项目任务分布</h3>
+            <div className="text-center py-8">
+              <div className="text-gray-400 text-4xl mb-4">📊</div>
+              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                暂无项目数据
+              </h4>
+              <p className="text-gray-600 mb-4">
+                正在加载项目数据，请稍候...
+              </p>
+              <div className="text-xs text-gray-500">
+                数据长度: {projectTaskStats.length} | 加载状态: {loading ? '加载中' : '已完成'} | 错误: {error || '无'}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

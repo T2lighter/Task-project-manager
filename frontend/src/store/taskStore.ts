@@ -24,7 +24,7 @@ interface TaskState {
   clearError: () => void;
 }
 
-export const useTaskStore = create<TaskState>((set, get) => ({
+export const useTaskStore = create<TaskState>((set) => ({
   tasks: [],
   loading: false,
   error: null,
@@ -33,7 +33,31 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     try {
       set({ loading: true, error: null });
       const response = await api.get('/tasks');
-      set({ tasks: response.data, loading: false });
+      
+      // 获取任务标签映射
+      const taskLabelsMapping = JSON.parse(localStorage.getItem('task_labels_mapping') || '{}');
+      const storedLabels = JSON.parse(localStorage.getItem('personalized_labels') || '[]');
+      
+      // 为每个任务添加标签信息
+      const tasksWithLabels = response.data.map((task: Task) => {
+        const labelIds = taskLabelsMapping[task.id] || [];
+        const taskLabels = labelIds.map((labelId: number) => {
+          const label = storedLabels.find((l: any) => l.id === labelId);
+          return label ? {
+            id: `${task.id}-${labelId}`, // 使用任务ID和标签ID组合作为稳定的ID
+            taskId: task.id,
+            labelId: labelId,
+            label: label
+          } : null;
+        }).filter(Boolean);
+        
+        return {
+          ...task,
+          labels: taskLabels
+        };
+      });
+      
+      set({ tasks: tasksWithLabels, loading: false });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '获取任务列表失败';
       set({ error: errorMessage, loading: false });

@@ -50,6 +50,7 @@ export interface ProjectStats {
 export interface ProjectTaskStats {
   projectId: number;
   projectName: string;
+  projectStatus: string; // 新增：项目状态
   totalTasks: number;
   completedTasks: number;
   inProgressTasks: number;
@@ -57,6 +58,16 @@ export interface ProjectTaskStats {
   overdueTasks: number;
   completionRate: number;
   progress: number;
+}
+
+export interface TaskDurationData {
+  taskId: number;
+  taskTitle: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  durationDays: number;
+  status: string;
+  projectName?: string;
 }
 
 export const getTaskStats = async (userId: number, period: 'day' | 'week' | 'month' = 'month'): Promise<TaskStats> => {
@@ -414,6 +425,7 @@ export const getProjectTaskStats = async (userId: number): Promise<ProjectTaskSt
       return {
         projectId: project.id,
         projectName: project.name,
+        projectStatus: project.status, // 新增：项目状态
         totalTasks,
         completedTasks,
         inProgressTasks,
@@ -422,9 +434,96 @@ export const getProjectTaskStats = async (userId: number): Promise<ProjectTaskSt
         completionRate,
         progress
       };
-    }).filter(stat => stat.totalTasks > 0); // 只返回有任务的项目
+    }); // 返回所有项目，包括没有任务的项目
   } catch (error) {
     console.error('获取项目任务统计时出错:', error);
+    throw error;
+  }
+};
+
+// 获取任务耗时排行数据
+export const getTaskDurationRanking = async (userId: number, year?: number): Promise<TaskDurationData[]> => {
+  try {
+    const targetYear = year || new Date().getFullYear();
+    
+    // 获取指定年份相关的任务（创建时间、更新时间或截止时间在该年份）
+    const tasks = await prisma.task.findMany({
+      where: {
+        userId,
+        parentTaskId: null, // 只获取主任务
+        OR: [
+          // 任务创建时间在目标年份
+          {
+            createdAt: {
+              gte: new Date(`${targetYear}-01-01`),
+              lt: new Date(`${targetYear + 1}-01-01`)
+            }
+          },
+          // 任务更新时间在目标年份（用于已完成任务）
+          {
+            updatedAt: {
+              gte: new Date(`${targetYear}-01-01`),
+              lt: new Date(`${targetYear + 1}-01-01`)
+            }
+          },
+          // 任务截止时间在目标年份
+          {
+            dueDate: {
+              gte: new Date(`${targetYear}-01-01`),
+              lt: new Date(`${targetYear + 1}-01-01`)
+            }
+          }
+        ]
+      },
+      include: {
+        project: {
+          select: {
+            name: true
+          }
+        }
+      }
+    });
+
+    const now = new Date();
+    
+    return tasks.map(task => {
+      let startDate: Date | null = null;
+      let endDate: Date | null = null;
+      let durationDays = 0;
+
+      // 确定任务的开始时间
+      startDate = task.createdAt;
+
+      // 确定任务的结束时间
+      if (task.status === 'completed') {
+        // 已完成任务使用更新时间作为结束时间
+        endDate = task.updatedAt;
+      } else if (task.status === 'in-progress') {
+        // 进行中任务使用当前时间作为结束时间
+        endDate = now;
+      } else if (task.dueDate) {
+        // 待办任务如果有截止时间，使用截止时间作为预期结束时间
+        endDate = new Date(task.dueDate);
+      }
+
+      // 计算持续天数
+      if (startDate && endDate) {
+        const diffTime = endDate.getTime() - startDate.getTime();
+        durationDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24))); // 至少1天
+      }
+
+      return {
+        taskId: task.id,
+        taskTitle: task.title,
+        startDate,
+        endDate,
+        durationDays,
+        status: task.status,
+        projectName: task.project?.name
+      };
+    }).filter(task => task.durationDays > 0); // 只返回有持续时间的任务
+  } catch (error) {
+    console.error('获取任务耗时排行时出错:', error);
     throw error;
   }
 };

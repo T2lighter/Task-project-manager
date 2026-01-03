@@ -48,6 +48,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    
+    if (!e.dataTransfer) {
+      return;
+    }
+    
     const taskData = e.dataTransfer.getData('text/plain');
     if (taskData) {
       try {

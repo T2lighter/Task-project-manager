@@ -72,8 +72,17 @@ const Quadrant: React.FC<QuadrantProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    
+    if (!e.dataTransfer) {
+      return;
+    }
+    
     try {
       const taskData = e.dataTransfer.getData('text/plain');
+      if (!taskData) {
+        return;
+      }
+      
       const task = JSON.parse(taskData) as Task;
       onDropTask?.(task, urgency, importance);
     } catch (error) {

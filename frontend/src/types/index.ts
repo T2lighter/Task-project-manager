@@ -211,6 +211,7 @@ export interface ProjectStats {
 export interface ProjectTaskStats {
   projectId: number;
   projectName: string;
+  projectStatus: string; // 新增：项目状态
   totalTasks: number;
   completedTasks: number;
   inProgressTasks: number;
@@ -218,4 +219,14 @@ export interface ProjectTaskStats {
   overdueTasks: number;
   completionRate: number;
   progress: number;
+}
+
+export interface TaskDurationData {
+  taskId: number;
+  taskTitle: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  durationDays: number;
+  status: string;
+  projectName?: string;
 }

@@ -12,7 +12,7 @@ import { useLabelStore } from '../store/labelStore';
 import { Task } from '../types';
 
 const TasksPage: React.FC = () => {
-  const { tasks, fetchTasks, createTask, updateTask, deleteTask, createSubtask, copyTask, setTaskLabels } = useTaskStore();
+  const { tasks, fetchTasks, createTask, updateTask, deleteTask, createSubtask, copyTask } = useTaskStore();
   const { 
     labels, 
     loading: labelsLoading,
@@ -21,8 +21,7 @@ const TasksPage: React.FC = () => {
     updateLabel, 
     deleteLabel,
     assignLabelToTask,
-    removeLabelFromTask,
-    updateTaskLabels
+    removeLabelFromTask
   } = useLabelStore();
   
   const location = useLocation();
@@ -49,7 +48,6 @@ const TasksPage: React.FC = () => {
   // 当切换到个性化展示时，重新同步任务标签数据
   React.useEffect(() => {
     if (viewMode === 'personalized' && labels.length > 0) {
-      console.log('切换到个性化展示，开始同步任务标签数据');
       // 使用setTimeout确保在下一个事件循环中执行，避免状态更新冲突
       const timeoutId = setTimeout(() => {
         syncTaskLabels();
@@ -61,54 +59,16 @@ const TasksPage: React.FC = () => {
 
   // 同步任务标签数据的函数
   const syncTaskLabels = React.useCallback(() => {
-    if (labels.length === 0 || tasks.length === 0) return; // 如果数据还没加载完成，跳过
+    if (labels.length === 0 || tasks.length === 0) return;
     
     try {
       // 从本地存储获取任务标签映射
-      const taskLabelsMapping = JSON.parse(localStorage.getItem('task_labels_mapping') || '{}');
-      console.log('当前任务标签映射:', taskLabelsMapping);
-      
-      // 批量更新任务标签数据
-      const updates: Array<{ taskId: number; labels: any[] }> = [];
-      
-      tasks.forEach(task => {
-        const labelIds = taskLabelsMapping[task.id] || [];
-        const taskLabels = labelIds.map((labelId: number) => {
-          const label = labels.find(l => l.id === labelId);
-          if (label) {
-            return {
-              id: Date.now() + labelId + task.id, // 生成唯一ID
-              taskId: task.id,
-              labelId: labelId,
-              label: label
-            };
-          }
-          return null;
-        }).filter(Boolean); // 过滤掉null值
-        
-        // 检查是否需要更新
-        const currentLabelIds = (task.labels || []).map((tl: any) => tl.labelId).sort();
-        const newLabelIds = taskLabels.map((tl: any) => tl.labelId).sort();
-        
-        if (JSON.stringify(currentLabelIds) !== JSON.stringify(newLabelIds)) {
-          updates.push({ taskId: task.id, labels: taskLabels });
-        }
-      });
-      
-      // 批量执行更新
-      if (updates.length > 0) {
-        console.log(`需要更新 ${updates.length} 个任务的标签数据`);
-        updates.forEach(({ taskId, labels: taskLabels }) => {
-          console.log(`同步任务 ${taskId} 的标签数据:`, taskLabels);
-          setTaskLabels(taskId, taskLabels);
-        });
-      } else {
-        console.log('所有任务标签数据已是最新');
-      }
+      JSON.parse(localStorage.getItem('task_labels_mapping') || '{}');
+      // 这里可以添加同步逻辑，但现在先简化处理
     } catch (error) {
       console.error('同步任务标签数据失败:', error);
     }
-  }, [tasks, labels, setTaskLabels]);
+  }, [tasks, labels]);
 
   // 从location.state中获取筛选条件并应用
   React.useEffect(() => {
@@ -141,9 +101,14 @@ const TasksPage: React.FC = () => {
     };
   }, [searchQuery]);
 
-  const handleCreateTask = (task: Omit<Task, 'id' | 'userId'>) => {
-    createTask(task);
-    setIsFormOpen(false);
+  const handleCreateTask = async (task: Omit<Task, 'id' | 'userId'>) => {
+    try {
+      await createTask(task);
+      setIsFormOpen(false);
+    } catch (error) {
+      console.error('创建任务失败:', error);
+      alert('创建任务失败，请重试');
+    }
   };
 
   const handleEditTask = (task: Task) => {
@@ -151,27 +116,34 @@ const TasksPage: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  const handleUpdateTask = (task: Omit<Task, 'id' | 'userId'>) => {
+  const handleUpdateTask = async (task: Omit<Task, 'id' | 'userId'>) => {
     if (editingTask) {
-      updateTask(editingTask.id, task);
-      setEditingTask(null);
-      setIsFormOpen(false);
+      try {
+        await updateTask(editingTask.id, task);
+        setEditingTask(null);
+        setIsFormOpen(false);
+      } catch (error) {
+        console.error('更新任务失败:', error);
+        alert('更新任务失败，请重试');
+      }
     }
   };
 
-  // 新增：处理任务复制
+  // 处理任务复制
   const handleCopyTask = async (task: Task) => {
     try {
       await copyTask(task.id);
       // 显示成功提示
-      console.log(`任务"${task.title}"复制成功`);
+      const successMessage = `任务"${task.title}"复制成功`;
+      // 可以考虑使用更好的通知组件替代alert
+      setTimeout(() => alert(successMessage), 100);
     } catch (error) {
       console.error('复制任务失败:', error);
       alert('复制任务失败，请重试');
     }
   };
 
-  // 新增：处理创建子任务
+  // 处理创建子任务
   const handleCreateSubtask = async (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => {
     try {
       await createSubtask(parentTaskId, subtaskData);
@@ -183,16 +155,22 @@ const TasksPage: React.FC = () => {
     }
   };
 
-  // 新增：处理单个任务删除确认
+  // 处理单个任务删除确认
   const handleDeleteTaskWithConfirm = (task: Task) => {
     setTaskToDelete(task);
     setShowDeleteConfirm(true);
   };
 
-  const handleConfirmDeleteTask = () => {
+  const handleConfirmDeleteTask = async () => {
     if (taskToDelete) {
-      deleteTask(taskToDelete.id);
-      setTaskToDelete(null);
+      try {
+        await deleteTask(taskToDelete.id);
+        setTaskToDelete(null);
+        setShowDeleteConfirm(false);
+      } catch (error) {
+        console.error('删除任务失败:', error);
+        alert('删除任务失败，请重试');
+      }
     }
   };
 
@@ -201,118 +179,25 @@ const TasksPage: React.FC = () => {
     setTaskToDelete(null);
   };
 
-  // 个性化标签相关处理函数
-  const handleAssignLabel = async (taskId: number, labelId: number) => {
-    try {
-      await assignLabelToTask(taskId, labelId);
-      
-      // 直接更新任务的标签数据
-      const task = tasks.find(t => t.id === taskId);
-      const label = labels.find(l => l.id === labelId);
-      
-      if (task && label) {
-        // 检查是否已经有这个标签
-        const existingLabel = task.labels?.find(tl => tl.labelId === labelId);
-        if (!existingLabel) {
-          const newTaskLabel = {
-            id: Date.now(),
-            taskId,
-            labelId,
-            label
-          };
-          
-          const updatedLabels = [...(task.labels || []), newTaskLabel];
-          setTaskLabels(taskId, updatedLabels);
-          console.log('标签分配成功，任务已更新');
-        }
-      }
-    } catch (error) {
-      console.error('分配标签失败:', error);
-    }
-  };
-
-  const handleRemoveLabel = async (taskId: number, labelId: number) => {
-    try {
-      await removeLabelFromTask(taskId, labelId);
-      
-      // 直接更新任务的标签数据
-      const task = tasks.find(t => t.id === taskId);
-      
-      if (task && task.labels) {
-        const updatedLabels = task.labels.filter(tl => tl.labelId !== labelId);
-        setTaskLabels(taskId, updatedLabels);
-        console.log('标签移除成功，任务已更新');
-      }
-    } catch (error) {
-      console.error('移除标签失败:', error);
-    }
-  };
-
-  const handleUpdateTaskLabels = async (taskId: number, labelIds: number[]) => {
-    try {
-      await updateTaskLabels(taskId, labelIds);
-      
-      // 直接更新任务的标签数据
-      const task = tasks.find(t => t.id === taskId);
-      
-      if (task) {
-        const updatedLabels = labelIds.map(labelId => {
-          const label = labels.find(l => l.id === labelId);
-          return {
-            id: Date.now() + labelId,
-            taskId,
-            labelId,
-            label
-          };
-        }).filter(tl => tl.label); // 过滤掉找不到的标签
-        
-        setTaskLabels(taskId, updatedLabels);
-        console.log('任务标签更新成功');
-      }
-    } catch (error) {
-      console.error('更新任务标签失败:', error);
-    }
-  };
-
   // 处理拖拽任务到标签区域
   const handleDropTaskToLabel = async (task: Task, labelId: number) => {
     try {
       // 检查任务是否已经有这个标签
       const existingLabel = task.labels?.find(tl => tl.labelId === labelId);
       if (existingLabel) {
-        console.log('任务已经有这个标签了');
         return;
       }
 
       await assignLabelToTask(task.id, labelId);
-      
-      // 添加新标签到现有标签列表中（不替换）
-      const label = labels.find(l => l.id === labelId);
-      
-      if (label) {
-        const newTaskLabel = {
-          id: Date.now(),
-          taskId: task.id,
-          labelId,
-          label
-        };
-        
-        // 添加到现有标签列表，允许多个标签
-        const currentLabels = task.labels || [];
-        const updatedLabels = [...currentLabels, newTaskLabel];
-        setTaskLabels(task.id, updatedLabels);
-        console.log(`任务"${task.title}"已添加到标签"${label.name}"，当前标签数量: ${updatedLabels.length}`);
-      }
+      await fetchTasks(); // 重新获取任务数据
     } catch (error) {
       console.error('拖拽分配标签失败:', error);
+      alert('添加标签失败，请重试');
     }
   };
 
-  // 处理从标签拖拽任务到任务列表（部分取消标签关联）
   const handleDropTaskToTaskList = async (task: Task) => {
     try {
-      console.log(`任务"${task.title}"被拖拽到任务列表`);
-      
       // 检查是否从特定标签拖拽
       const dragFromLabelData = sessionStorage.getItem('dragFromLabel');
       
@@ -321,60 +206,27 @@ const TasksPage: React.FC = () => {
         const { taskId, labelId } = JSON.parse(dragFromLabelData);
         
         if (taskId === task.id) {
-          console.log(`从标签 ${labelId} 拖拽任务 ${taskId}，只移除该标签关联`);
-          
-          // 从本地存储中移除特定标签关联
-          const taskLabelsMapping = JSON.parse(localStorage.getItem('task_labels_mapping') || '{}');
-          const currentLabels = taskLabelsMapping[task.id] || [];
-          const updatedLabels = currentLabels.filter((id: number) => id !== labelId);
-          
-          if (updatedLabels.length > 0) {
-            taskLabelsMapping[task.id] = updatedLabels;
-          } else {
-            delete taskLabelsMapping[task.id];
-          }
-          
-          localStorage.setItem('task_labels_mapping', JSON.stringify(taskLabelsMapping));
-          
           // 移除特定标签
           await removeLabelFromTask(task.id, labelId);
-          
-          // 更新任务状态，移除特定标签
-          const currentTaskLabels = task.labels || [];
-          const updatedTaskLabels = currentTaskLabels.filter(tl => tl.labelId !== labelId);
-          setTaskLabels(task.id, updatedTaskLabels);
-          
-          const labelName = labels.find(l => l.id === labelId)?.name || '未知标签';
-          console.log(`任务"${task.title}"已从标签"${labelName}"中移除，剩余标签数量: ${updatedTaskLabels.length}`);
+          await fetchTasks(); // 重新获取任务数据
         }
         
         // 清理sessionStorage
         sessionStorage.removeItem('dragFromLabel');
       } else {
         // 从任务列表拖拽，移除所有标签（保持原有逻辑）
-        console.log('从任务列表拖拽，移除所有标签');
-        
         const currentLabels = task.labels || [];
         
         if (currentLabels.length === 0) {
-          console.log('任务没有标签，无需处理');
           return;
         }
-        
-        // 从本地存储中移除任务的所有标签关联
-        const taskLabelsMapping = JSON.parse(localStorage.getItem('task_labels_mapping') || '{}');
-        delete taskLabelsMapping[task.id];
-        localStorage.setItem('task_labels_mapping', JSON.stringify(taskLabelsMapping));
         
         // 移除任务的所有标签
         for (const taskLabel of currentLabels) {
           await removeLabelFromTask(task.id, taskLabel.labelId);
         }
         
-        // 更新任务状态，清空标签
-        setTaskLabels(task.id, []);
-        
-        console.log(`任务"${task.title}"的所有标签已取消`);
+        await fetchTasks(); // 重新获取任务数据
       }
     } catch (error) {
       console.error('取消任务标签关联失败:', error);
@@ -384,11 +236,16 @@ const TasksPage: React.FC = () => {
 
 
   // 处理从表单中删除任务
-  const handleDeleteTaskFromForm = () => {
+  const handleDeleteTaskFromForm = async () => {
     if (editingTask) {
-      deleteTask(editingTask.id);
-      setEditingTask(null);
-      setIsFormOpen(false);
+      try {
+        await deleteTask(editingTask.id);
+        setEditingTask(null);
+        setIsFormOpen(false);
+      } catch (error) {
+        console.error('删除任务失败:', error);
+        alert('删除任务失败，请重试');
+      }
     }
   };
 
@@ -397,11 +254,11 @@ const TasksPage: React.FC = () => {
     setEditingTask(null);
   };
 
-  const handleDragStartTask = (task: Task) => {
+  const handleDragStartTask = (_task: Task) => {
     // 拖拽开始时的处理逻辑（如果需要的话）
   };
 
-  const handleDropTask = (task: Task, newUrgency: boolean, newImportance: boolean) => {
+  const handleDropTask = async (task: Task, newUrgency: boolean, newImportance: boolean) => {
     // 验证任务数据完整性
     if (!task || !task.id) {
       console.error('无效的任务数据:', task);
@@ -424,16 +281,17 @@ const TasksPage: React.FC = () => {
         categoryId: taskData.categoryId || undefined
       };
       
-      updateTask(task.id, updateData).then(() => {
-        // 任务移动成功
-      }).catch((error) => {
+      try {
+        await updateTask(task.id, updateData);
+      } catch (error) {
         console.error('移动任务失败:', error);
-      });
+        alert('移动任务失败，请重试');
+      }
     }
   };
 
   // 看板模式的拖拽处理函数
-  const handleKanbanDropTask = (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => {
+  const handleKanbanDropTask = async (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => {
     // 验证任务数据完整性
     if (!task || !task.id) {
       console.error('无效的任务数据:', task);
@@ -456,11 +314,12 @@ const TasksPage: React.FC = () => {
         categoryId: taskData.categoryId || undefined
       };
       
-      updateTask(task.id, updateData).then(() => {
-        // 任务状态更新成功
-      }).catch((error) => {
+      try {
+        await updateTask(task.id, updateData);
+      } catch (error) {
         console.error('更新任务状态失败:', error);
-      });
+        alert('更新任务状态失败，请重试');
+      }
     }
   };
 
@@ -701,7 +560,6 @@ const TasksPage: React.FC = () => {
         onDelete={editingTask ? handleDeleteTaskFromForm : undefined}
         isOpen={isFormOpen}
         asModal={true}
-        onUpdateTaskLabels={handleUpdateTaskLabels}
       />
 
       {/* 左右布局 */}

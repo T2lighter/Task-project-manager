@@ -41,18 +41,27 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const [isSubtaskModalOpen, setIsSubtaskModalOpen] = React.useState(false); // 新增：子任务Modal状态
 
   const handleDragStart = (e: React.DragEvent) => {
-    const taskData = JSON.stringify(task);
-    e.dataTransfer.setData('text/plain', taskData);
-    e.dataTransfer.effectAllowed = 'move';
-    setIsDragging(true);
-    onDragStart?.(task);
+    // 确保事件对象存在
+    if (!e || !e.dataTransfer) {
+      return;
+    }
     
-    // 添加拖拽时的视觉效果
-    setTimeout(() => {
-      if (e.currentTarget) {
-        (e.currentTarget as HTMLElement).style.transform = 'rotate(5deg) scale(1.05)';
-      }
-    }, 0);
+    try {
+      const taskData = JSON.stringify(task);
+      e.dataTransfer.setData('text/plain', taskData);
+      e.dataTransfer.effectAllowed = 'move';
+      setIsDragging(true);
+      onDragStart?.(task);
+      
+      // 添加拖拽时的视觉效果
+      setTimeout(() => {
+        if (e.currentTarget) {
+          (e.currentTarget as HTMLElement).style.transform = 'rotate(5deg) scale(1.05)';
+        }
+      }, 0);
+    } catch (error) {
+      console.error('拖拽开始时出错:', error);
+    }
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
@@ -85,7 +94,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
           ? 'task-card-dragging border-blue-400 bg-blue-50' 
           : 'bg-gray-50 border-gray-200'
       }`}
-      draggable
+      draggable={true}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -119,7 +128,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
             )}
             {onEdit && (
               <button
-                onClick={() => onEdit(task)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onEdit(task);
+                }}
                 className={`text-blue-600 hover:text-blue-800 ${compact ? 'text-sm' : 'text-sm'}`}
                 title="编辑任务"
               >
@@ -141,7 +154,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
             )}
             {onDelete && (
               <button
-                onClick={() => onDelete(task)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onDelete(task);
+                }}
                 className={`text-red-600 hover:text-red-800 ${compact ? 'text-sm' : 'text-sm'}`}
                 title="删除任务"
               >

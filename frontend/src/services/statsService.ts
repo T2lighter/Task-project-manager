@@ -1,5 +1,5 @@
 import api from './api';
-import { TaskStats, QuadrantStats, CategoryStats, TimeSeriesData, ProjectStats, ProjectTaskStats } from '../types';
+import { TaskStats, QuadrantStats, CategoryStats, TimeSeriesData, ProjectStats, ProjectTaskStats, TaskDurationData } from '../types';
 
 export const getTaskStats = async (period: 'day' | 'week' | 'month' = 'month'): Promise<TaskStats> => {
   const response = await api.get(`/stats/stats?period=${period}`);
@@ -39,5 +39,11 @@ export const getProjectStats = async (): Promise<ProjectStats> => {
 
 export const getProjectTaskStats = async (): Promise<ProjectTaskStats[]> => {
   const response = await api.get('/stats/project-task-stats');
+  return response.data;
+};
+
+export const getTaskDurationRanking = async (year?: number): Promise<TaskDurationData[]> => {
+  const yearParam = year ? `?year=${year}` : '';
+  const response = await api.get(`/stats/task-duration-ranking${yearParam}`);
   return response.data;
 };

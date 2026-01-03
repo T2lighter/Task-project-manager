@@ -25,6 +25,11 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
 }) => {
   const [dragOverLabelId, setDragOverLabelId] = React.useState<number | null>(null);
   
+  // 监控任务数据变化
+  React.useEffect(() => {
+    // 任务数据更新时的处理逻辑（如果需要的话）
+  }, [tasks]);
+  
   // 自定义拖拽开始处理函数，包含标签信息
   const handleDragStartFromLabel = (task: Task, labelId: number) => {
     // 调用原始的拖拽开始函数
@@ -91,10 +96,22 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
   const handleDrop = (e: React.DragEvent, labelId: number) => {
     e.preventDefault();
     setDragOverLabelId(null);
+    
+    if (!e.dataTransfer) {
+      return;
+    }
+    
     try {
       const taskData = e.dataTransfer.getData('text/plain');
+      if (!taskData) {
+        return;
+      }
+      
       const task = JSON.parse(taskData) as Task;
-      onDropTask?.(task, labelId);
+      
+      if (onDropTask) {
+        onDropTask(task, labelId);
+      }
     } catch (error) {
       console.error('拖拽任务到标签失败:', error);
     }
@@ -129,7 +146,7 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
             key={label.id} 
             className={`rounded-lg shadow p-3 border-l-4 min-h-24 bg-white hover:bg-gray-50 drag-transition ${
               dragOverLabelId === label.id 
-                ? 'drop-zone-active' 
+                ? 'bg-blue-50' 
                 : ''
             } ${colorClasses.border}`}
             onDragOver={(e) => handleDragOver(e, label.id)}
@@ -168,10 +185,10 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6 text-gray-400">
+              <div className="text-center py-4 text-gray-400">
                 <div className="text-2xl mb-2">📋</div>
                 <p className="text-sm">暂无任务</p>
-                <p className="text-xs mt-1">拖拽任务到此处进行分类</p>
+                <p className="text-xs mt-1 text-gray-500">拖拽任务到此处进行分类</p>
               </div>
             )}
           </div>
