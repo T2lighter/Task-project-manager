@@ -235,7 +235,6 @@ const ProfilePage: React.FC = () => {
     };
     
     initializeData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 只在组件挂载时执行一次
 
   // 当统计数据改变时重新获取数据 - 移除这个useEffect，避免重复调用
