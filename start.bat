@@ -33,14 +33,14 @@ if not exist "frontend\node_modules" (
     cd ..
 )
 
-:: Start backend as independent process (hidden window)
+:: Start backend silently in background (no window)
 echo [START] Backend service...
-start "" /min cmd /c "cd /d "%~dp0backend" && npm run dev"
+powershell -Command "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c cd /d \"%~dp0backend\" && npm run dev' -WindowStyle Hidden"
 timeout /t 2 /nobreak >nul
 
-:: Start frontend as independent process (hidden window)
+:: Start frontend silently in background (no window)
 echo [START] Frontend service...
-start "" /min cmd /c "cd /d "%~dp0frontend" && npm run dev"
+powershell -Command "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c cd /d \"%~dp0frontend\" && npm run dev' -WindowStyle Hidden"
 timeout /t 3 /nobreak >nul
 
 echo.
@@ -51,7 +51,7 @@ echo    Frontend: http://localhost:5173
 echo    Backend:  http://localhost:5000
 echo ========================================
 echo.
-echo Services running independently.
+echo Services running silently in background.
 echo Run stop.bat to stop services.
 echo.
 echo This window will close in 3 seconds...
