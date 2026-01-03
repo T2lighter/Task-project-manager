@@ -80,13 +80,8 @@ export const deleteExistingTask = async (req: Request, res: Response) => {
     
     console.log(`准备删除任务: ${existingTask.title} (ID: ${taskId})`);
     
-    const result = await deleteTask(taskId, userId);
-    console.log(`删除结果: 影响行数 ${result.count}`);
-    
-    if (result.count === 0) {
-      console.log(`删除失败: 没有找到匹配的任务`);
-      return res.status(404).json({ message: '任务不存在或无权限删除' });
-    }
+    const deletedTask = await deleteTask(taskId, userId);
+    console.log(`删除结果: 任务ID ${deletedTask.id}`);
     
     console.log(`任务删除成功: ID ${taskId}`);
     res.json({ message: '任务已删除' });
