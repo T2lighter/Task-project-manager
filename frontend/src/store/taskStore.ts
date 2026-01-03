@@ -13,6 +13,7 @@ interface TaskState {
   createTask: (task: Omit<Task, 'id' | 'userId'>) => Promise<void>;
   updateTask: (taskId: number, task: Omit<Task, 'id' | 'userId'>) => Promise<void>;
   deleteTask: (taskId: number) => Promise<void>;
+  batchDeleteTasks: (taskIds: number[]) => Promise<void>;
   copyTask: (taskId: number) => Promise<void>;
   
   // 子任务相关方法
@@ -130,6 +131,28 @@ export const useTaskStore = create<TaskState>((set) => ({
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '删除任务失败';
+      set({ error: errorMessage, loading: false });
+      throw error;
+    }
+  },
+
+  batchDeleteTasks: async (taskIds) => {
+    try {
+      set({ loading: true, error: null });
+      await api.delete('/tasks/batch', { data: { taskIds } });
+      
+      set((state) => ({
+        tasks: state.tasks
+          .filter((t) => !taskIds.includes(t.id)) // 移除被删除的任务
+          .map((t) => ({
+            ...t,
+            // 同时从父任务的subtasks数组中移除被删除的子任务
+            subtasks: t.subtasks ? t.subtasks.filter((subtask) => !taskIds.includes(subtask.id)) : t.subtasks
+          })),
+        loading: false
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '批量删除任务失败';
       set({ error: errorMessage, loading: false });
       throw error;
     }

@@ -20,6 +20,10 @@ interface TaskCardProps {
   showStatus?: boolean; // 新增：是否显示状态标签
   showProject?: boolean; // 新增：是否显示项目标签
   showPersonalizedLabels?: boolean; // 新增：是否显示个性化标签
+  // 批量选择相关
+  selectable?: boolean; // 是否可选择
+  selected?: boolean; // 是否已选中
+  onSelect?: (task: Task, selected: boolean) => void; // 选择回调
 }
 
 const TaskCard: React.FC<TaskCardProps> = ({ 
@@ -35,7 +39,11 @@ const TaskCard: React.FC<TaskCardProps> = ({
   showCompleted = true, // 默认显示已完成样式
   showStatus = true, // 默认显示状态标签
   showProject = true, // 默认显示项目标签
-  showPersonalizedLabels = false // 默认不显示个性化标签
+  showPersonalizedLabels = false, // 默认不显示个性化标签
+  // 批量选择相关
+  selectable = false,
+  selected = false,
+  onSelect
 }) => {
   const [isDragging, setIsDragging] = React.useState(false);
   const [isSubtaskModalOpen, setIsSubtaskModalOpen] = React.useState(false); // 新增：子任务Modal状态
@@ -92,14 +100,37 @@ const TaskCard: React.FC<TaskCardProps> = ({
       } ${
         isDragging 
           ? 'task-card-dragging border-blue-400 bg-blue-50' 
-          : 'bg-gray-50 border-gray-200'
+          : selected
+            ? 'bg-blue-50 border-blue-400'
+            : 'bg-gray-50 border-gray-200'
       }`}
-      draggable={true}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      draggable={!selectable}
+      onDragStart={selectable ? undefined : handleDragStart}
+      onDragEnd={selectable ? undefined : handleDragEnd}
+      onClick={selectable ? (e) => {
+        // 如果点击的是 checkbox 本身，不触发卡片的点击事件（避免重复触发）
+        if ((e.target as HTMLElement).tagName === 'INPUT') {
+          return;
+        }
+        onSelect?.(task, !selected);
+      } : undefined}
     >
       {/* 第一行：任务标题和操作按钮 */}
       <div className="flex justify-between items-start gap-2">
+        {/* 选择框 */}
+        {selectable && (
+          <div className="flex-shrink-0 flex items-center">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onSelect?.(task, e.target.checked);
+              }}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+            />
+          </div>
+        )}
         <h3 className={`font-medium text-gray-900 ${compact ? 'text-sm' : 'text-sm'} ${
           showCompleted && task.status === 'completed' ? 'line-through' : ''
         } flex-1 min-w-0`}>

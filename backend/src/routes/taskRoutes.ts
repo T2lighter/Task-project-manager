@@ -5,6 +5,7 @@ import {
   getTask, 
   updateExistingTask, 
   deleteExistingTask,
+  batchDeleteTasksHandler,
   getTasksByQuadrantHandler,
   createNewSubtask,
   getTaskSubtasks,
@@ -21,6 +22,7 @@ router.post('/', createNewTask);
 router.get('/', getAllTasks);
 router.get('/main', getMainTasksHandler); // 获取主任务列表
 router.get('/quadrant', getTasksByQuadrantHandler);
+router.delete('/batch', batchDeleteTasksHandler); // 批量删除任务（放在 /:id 之前）
 router.get('/:id', getTask);
 router.put('/:id', updateExistingTask);
 router.delete('/:id', deleteExistingTask);

@@ -27,6 +27,11 @@ const ProjectsPage: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
 
+  // 批量删除相关状态
+  const [isBatchDeleteMode, setIsBatchDeleteMode] = useState(false);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([]);
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
+
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
@@ -88,6 +93,56 @@ const ProjectsPage: React.FC = () => {
   const handleCancelDeleteProject = () => {
     setShowDeleteConfirm(false);
     setProjectToDelete(null);
+  };
+
+  // 批量删除相关处理函数
+  const handleToggleBatchDeleteMode = () => {
+    if (isBatchDeleteMode) {
+      setIsBatchDeleteMode(false);
+      setSelectedProjectIds([]);
+    } else {
+      setIsBatchDeleteMode(true);
+    }
+  };
+
+  const handleSelectProject = (project: Project, selected: boolean) => {
+    if (selected) {
+      setSelectedProjectIds(prev => [...prev, project.id]);
+    } else {
+      setSelectedProjectIds(prev => prev.filter(id => id !== project.id));
+    }
+  };
+
+  const handleSelectAllProjects = () => {
+    if (selectedProjectIds.length === filteredProjects.length) {
+      setSelectedProjectIds([]);
+    } else {
+      setSelectedProjectIds(filteredProjects.map(p => p.id));
+    }
+  };
+
+  const handleBatchDeleteClick = () => {
+    if (selectedProjectIds.length > 0) {
+      setShowBatchDeleteConfirm(true);
+    }
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    try {
+      for (const projectId of selectedProjectIds) {
+        await deleteProject(projectId);
+      }
+      setSelectedProjectIds([]);
+      setIsBatchDeleteMode(false);
+      setShowBatchDeleteConfirm(false);
+    } catch (error) {
+      console.error('批量删除项目失败:', error);
+      alert('批量删除项目失败，请重试');
+    }
+  };
+
+  const handleCancelBatchDelete = () => {
+    setShowBatchDeleteConfirm(false);
   };
 
   // 处理从表单中删除项目
@@ -199,12 +254,64 @@ const ProjectsPage: React.FC = () => {
           <p className="text-gray-600 mt-1">管理和跟踪您的项目进度</p>
         </div>
         
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-        >
-          创建项目
-        </button>
+        <div className="flex items-center gap-3">
+          {/* 搜索框 */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="搜索项目... (Ctrl+F)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-64 pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white focus:bg-white shadow-sm"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-100 rounded-r-lg transition-colors duration-200"
+                title="清除搜索 (ESC)"
+              >
+                <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* 创建项目按钮 */}
+          {!isBatchDeleteMode && (
+            <button
+              onClick={() => setIsFormOpen(true)}
+              className="bg-blue-600 text-white w-10 h-10 rounded-lg text-lg font-bold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center"
+              title="创建项目"
+            >
+              +
+            </button>
+          )}
+
+          {/* 删除项目按钮 */}
+          {!isBatchDeleteMode ? (
+            <button
+              onClick={handleToggleBatchDeleteMode}
+              className="bg-gray-100 text-gray-600 w-10 h-10 rounded-lg text-lg hover:bg-red-100 hover:text-red-600 transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center"
+              title="批量删除"
+            >
+              🗑️
+            </button>
+          ) : (
+            <button
+              onClick={handleToggleBatchDeleteMode}
+              className="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-all duration-200"
+              title="取消批量删除"
+            >
+              取消
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 筛选按钮 */}
@@ -261,32 +368,36 @@ const ProjectsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* 搜索框 */}
-      <div className="relative max-w-md">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-        <input
-          type="text"
-          placeholder="搜索项目... (Ctrl+F)"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white focus:bg-white shadow-sm"
-        />
-        {searchQuery && (
+      {/* 批量删除模式工具栏 */}
+      {isBatchDeleteMode && (
+        <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedProjectIds.length === filteredProjects.length && filteredProjects.length > 0}
+                onChange={handleSelectAllProjects}
+                className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500"
+              />
+              <span className="text-sm text-gray-700">全选</span>
+            </label>
+            <span className="text-sm text-gray-600">
+              已选择 {selectedProjectIds.length} 个项目
+            </span>
+          </div>
           <button
-            onClick={() => setSearchQuery('')}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-100 rounded-r-lg transition-colors duration-200"
-            title="清除搜索 (ESC)"
+            onClick={handleBatchDeleteClick}
+            disabled={selectedProjectIds.length === 0}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+              selectedProjectIds.length > 0
+                ? 'bg-red-600 text-white hover:bg-red-700 shadow-md'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
           >
-            <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            删除选中 ({selectedProjectIds.length})
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 搜索结果提示 */}
       {searchQuery && (
@@ -344,13 +455,33 @@ const ProjectsPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map(project => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              onEdit={handleEditProject}
-              onDelete={handleDeleteProjectWithConfirm}
-              onView={handleViewProject}
-            />
+            <div key={project.id} className="relative">
+              {/* 批量删除模式下的选择框 */}
+              {isBatchDeleteMode && (
+                <div 
+                  className="absolute top-3 left-3 z-10"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedProjectIds.includes(project.id)}
+                    onChange={(e) => handleSelectProject(project, e.target.checked)}
+                    className="w-5 h-5 text-red-600 bg-white border-gray-300 rounded focus:ring-red-500 cursor-pointer shadow-sm"
+                  />
+                </div>
+              )}
+              <div 
+                className={`${isBatchDeleteMode && selectedProjectIds.includes(project.id) ? 'ring-2 ring-red-400 rounded-lg' : ''}`}
+                onClick={isBatchDeleteMode ? () => handleSelectProject(project, !selectedProjectIds.includes(project.id)) : undefined}
+              >
+                <ProjectCard
+                  project={project}
+                  onEdit={isBatchDeleteMode ? undefined : handleEditProject}
+                  onDelete={isBatchDeleteMode ? undefined : handleDeleteProjectWithConfirm}
+                  onView={isBatchDeleteMode ? undefined : handleViewProject}
+                />
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -372,6 +503,18 @@ const ProjectsPage: React.FC = () => {
         onConfirm={handleConfirmDeleteProject}
         title="删除项目"
         message={projectToDelete ? `确定要删除项目"${projectToDelete.name}"吗？此操作将同时删除项目下的所有任务，且无法撤销。` : ''}
+        confirmText="删除"
+        cancelText="取消"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
+
+      {/* 批量删除项目确认对话框 */}
+      <ConfirmDialog
+        isOpen={showBatchDeleteConfirm}
+        onClose={handleCancelBatchDelete}
+        onConfirm={handleConfirmBatchDelete}
+        title="批量删除项目"
+        message={`确定要删除选中的 ${selectedProjectIds.length} 个项目吗？此操作将同时删除项目下的所有任务，且无法撤销。`}
         confirmText="删除"
         cancelText="取消"
         confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"

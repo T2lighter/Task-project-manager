@@ -199,6 +199,29 @@ export const getTasksByQuadrant = async (userId: number, urgency: boolean, impor
   });
 };
 
+// 批量删除任务
+export const batchDeleteTasks = async (taskIds: number[], userId: number) => {
+  // 验证所有任务都属于当前用户
+  const tasks = await prisma.task.findMany({
+    where: {
+      id: { in: taskIds },
+      userId
+    }
+  });
+
+  if (tasks.length !== taskIds.length) {
+    throw new Error('部分任务不存在或无权限删除');
+  }
+
+  // 批量删除任务（子任务会自动级联删除）
+  return prisma.task.deleteMany({
+    where: {
+      id: { in: taskIds },
+      userId
+    }
+  });
+};
+
 // 复制任务
 export const copyTask = async (taskId: number, userId: number) => {
   // 获取原任务数据

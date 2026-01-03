@@ -5,6 +5,7 @@ import {
   getTaskById, 
   updateTask, 
   deleteTask,
+  batchDeleteTasks,
   getTasksByQuadrant,
   createSubtask,
   getSubtasks,
@@ -152,6 +153,28 @@ export const getMainTasksHandler = async (req: Request, res: Response) => {
     res.json(mainTasks);
   } catch (error) {
     res.status(500).json({ message: (error as Error).message });
+  }
+};
+
+// 批量删除任务
+export const batchDeleteTasksHandler = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.userId;
+    const { taskIds } = req.body;
+
+    if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+      return res.status(400).json({ message: '请提供要删除的任务ID列表' });
+    }
+
+    console.log(`批量删除任务请求: 用户 ${userId}, 任务IDs ${taskIds.join(', ')}`);
+
+    const result = await batchDeleteTasks(taskIds, userId);
+
+    console.log(`批量删除成功: 删除了 ${result.count} 个任务`);
+    res.json({ message: `成功删除 ${result.count} 个任务`, count: result.count });
+  } catch (error) {
+    console.error('批量删除任务时出错:', error);
+    res.status(400).json({ message: (error as Error).message });
   }
 };
 

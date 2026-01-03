@@ -12,7 +12,7 @@ import { useLabelStore } from '../store/labelStore';
 import { Task } from '../types';
 
 const TasksPage: React.FC = () => {
-  const { tasks, fetchTasks, createTask, updateTask, deleteTask, createSubtask, copyTask } = useTaskStore();
+  const { tasks, fetchTasks, createTask, updateTask, deleteTask, batchDeleteTasks, createSubtask, copyTask } = useTaskStore();
   const { 
     labels, 
     loading: labelsLoading,
@@ -38,6 +38,11 @@ const TasksPage: React.FC = () => {
   
   // 新增：任务列表拖拽状态
   const [isDragOverTaskList, setIsDragOverTaskList] = useState(false);
+
+  // 批量删除相关状态
+  const [isBatchDeleteMode, setIsBatchDeleteMode] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
 
 
   React.useEffect(() => {
@@ -133,10 +138,6 @@ const TasksPage: React.FC = () => {
   const handleCopyTask = async (task: Task) => {
     try {
       await copyTask(task.id);
-      // 显示成功提示
-      const successMessage = `任务"${task.title}"复制成功`;
-      // 可以考虑使用更好的通知组件替代alert
-      setTimeout(() => alert(successMessage), 100);
     } catch (error) {
       console.error('复制任务失败:', error);
       alert('复制任务失败，请重试');
@@ -177,6 +178,58 @@ const TasksPage: React.FC = () => {
   const handleCancelDeleteTask = () => {
     setShowDeleteConfirm(false);
     setTaskToDelete(null);
+  };
+
+  // 批量删除相关处理函数
+  const handleToggleBatchDeleteMode = () => {
+    if (isBatchDeleteMode) {
+      // 退出批量删除模式，清空选择
+      setIsBatchDeleteMode(false);
+      setSelectedTaskIds([]);
+    } else {
+      // 进入批量删除模式
+      setIsBatchDeleteMode(true);
+    }
+  };
+
+  const handleSelectTask = (task: Task, selected: boolean) => {
+    if (selected) {
+      setSelectedTaskIds(prev => [...prev, task.id]);
+    } else {
+      setSelectedTaskIds(prev => prev.filter(id => id !== task.id));
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTaskIds.length === filteredTasks.length) {
+      // 全部取消选择
+      setSelectedTaskIds([]);
+    } else {
+      // 全选
+      setSelectedTaskIds(filteredTasks.map(task => task.id));
+    }
+  };
+
+  const handleBatchDeleteClick = () => {
+    if (selectedTaskIds.length > 0) {
+      setShowBatchDeleteConfirm(true);
+    }
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    try {
+      await batchDeleteTasks(selectedTaskIds);
+      setSelectedTaskIds([]);
+      setIsBatchDeleteMode(false);
+      setShowBatchDeleteConfirm(false);
+    } catch (error) {
+      console.error('批量删除任务失败:', error);
+      alert('批量删除任务失败，请重试');
+    }
+  };
+
+  const handleCancelBatchDelete = () => {
+    setShowBatchDeleteConfirm(false);
   };
 
   // 处理拖拽任务到标签区域
@@ -567,7 +620,7 @@ const TasksPage: React.FC = () => {
         {/* 左侧：任务列表 */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow p-3">
-            {/* 标题行：任务列表 + 搜索框 + 添加任务按钮 */}
+            {/* 标题行：任务列表 + 搜索框 + 添加任务按钮 + 删除按钮 */}
             <div className="flex items-center gap-3 mb-3">
               <h2 className="text-lg font-semibold text-gray-800 flex-shrink-0">任务列表</h2>
               
@@ -599,12 +652,34 @@ const TasksPage: React.FC = () => {
               </div>
               
               {/* 添加任务按钮 */}
-              <button
-                onClick={() => setIsFormOpen(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex-shrink-0"
-              >
-                添加任务
-              </button>
+              {!isBatchDeleteMode && (
+                <button
+                  onClick={() => setIsFormOpen(true)}
+                  className="bg-blue-600 text-white w-10 h-10 rounded-lg text-lg font-bold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex-shrink-0 flex items-center justify-center"
+                  title="添加任务"
+                >
+                  +
+                </button>
+              )}
+              
+              {/* 删除任务按钮 */}
+              {!isBatchDeleteMode ? (
+                <button
+                  onClick={handleToggleBatchDeleteMode}
+                  className="bg-gray-100 text-gray-600 w-10 h-10 rounded-lg text-lg hover:bg-red-100 hover:text-red-600 transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0 flex items-center justify-center"
+                  title="批量删除"
+                >
+                  🗑️
+                </button>
+              ) : (
+                <button
+                  onClick={handleToggleBatchDeleteMode}
+                  className="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-all duration-200 flex-shrink-0"
+                  title="取消批量删除"
+                >
+                  取消
+                </button>
+              )}
             </div>
             
             {/* 搜索结果提示 */}
@@ -616,6 +691,37 @@ const TasksPage: React.FC = () => {
                 <span className="text-blue-500">
                   按 ESC 清除搜索
                 </span>
+              </div>
+            )}
+
+            {/* 批量删除模式工具栏 */}
+            {isBatchDeleteMode && (
+              <div className="mb-3 flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500"
+                    />
+                    <span className="text-sm text-gray-700">全选</span>
+                  </label>
+                  <span className="text-sm text-gray-600">
+                    已选择 {selectedTaskIds.length} 个任务
+                  </span>
+                </div>
+                <button
+                  onClick={handleBatchDeleteClick}
+                  disabled={selectedTaskIds.length === 0}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    selectedTaskIds.length > 0
+                      ? 'bg-red-600 text-white hover:bg-red-700 shadow-md'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  删除选中 ({selectedTaskIds.length})
+                </button>
               </div>
             )}
             
@@ -729,12 +835,15 @@ const TasksPage: React.FC = () => {
                   <TaskCard
                     key={task.id}
                     task={task}
-                    onEdit={handleEditTask}
-                    onDelete={handleDeleteTaskWithConfirm}
-                    onCopy={handleCopyTask}
-                    onDragStart={handleDragStartTask}
-                    showSubtasks={true} // 启用子任务显示
-                    onCreateSubtask={handleCreateSubtask} // 传递子任务创建函数
+                    onEdit={isBatchDeleteMode ? undefined : handleEditTask}
+                    onDelete={isBatchDeleteMode ? undefined : handleDeleteTaskWithConfirm}
+                    onCopy={isBatchDeleteMode ? undefined : handleCopyTask}
+                    onDragStart={isBatchDeleteMode ? undefined : handleDragStartTask}
+                    showSubtasks={!isBatchDeleteMode} // 批量删除模式下不显示子任务
+                    onCreateSubtask={isBatchDeleteMode ? undefined : handleCreateSubtask}
+                    selectable={isBatchDeleteMode}
+                    selected={selectedTaskIds.includes(task.id)}
+                    onSelect={handleSelectTask}
                   />
                 ))
               )}
@@ -880,6 +989,18 @@ const TasksPage: React.FC = () => {
         onConfirm={handleConfirmDeleteTask}
         title="删除任务"
         message={taskToDelete ? `确定要删除任务"${taskToDelete.title}"吗？此操作无法撤销。` : ''}
+        confirmText="删除"
+        cancelText="取消"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
+
+      {/* 批量删除确认对话框 */}
+      <ConfirmDialog
+        isOpen={showBatchDeleteConfirm}
+        onClose={handleCancelBatchDelete}
+        onConfirm={handleConfirmBatchDelete}
+        title="批量删除任务"
+        message={`确定要删除选中的 ${selectedTaskIds.length} 个任务吗？此操作无法撤销。`}
         confirmText="删除"
         cancelText="取消"
         confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
