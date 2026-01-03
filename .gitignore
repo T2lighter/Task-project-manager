@@ -1,1 +1,49 @@
-node_modules
+# 依赖目录
+node_modules/
+*/node_modules/
+
+# 构建输出
+dist/
+build/
+*.local
+
+# 环境变量文件（包含敏感信息）
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# 数据库文件
+*.db
+*.db-journal
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# 日志文件
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 编辑器配置
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 测试覆盖率
+coverage/
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# TypeScript 缓存
+*.tsbuildinfo
