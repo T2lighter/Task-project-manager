@@ -104,21 +104,6 @@ const ObjectiveForm: React.FC<ObjectiveFormProps> = ({
     }
   };
 
-  const getStatusConfig = (_status: Objective['status']) => {
-    switch (status) {
-      case 'draft':
-        return { color: 'text-gray-600', text: '草稿' };
-      case 'active':
-        return { color: 'text-blue-600', text: '进行中' };
-      case 'completed':
-        return { color: 'text-green-600', text: '已完成' };
-      case 'cancelled':
-        return { color: 'text-red-600', text: '已取消' };
-      default:
-        return { color: 'text-gray-600', text: '未知' };
-    }
-  };
-
   if (!isOpen) return null;
 
   const content = (

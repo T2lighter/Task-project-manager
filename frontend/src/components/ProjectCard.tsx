@@ -74,7 +74,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
         <div className="flex-1">
           <h3 
             className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
-            onClick={() => onView(project)}
+            onClick={() => onView?.(project)}
           >
             {project.name}
           </h3>
@@ -88,14 +88,14 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
         {/* 操作按钮 */}
         <div className="flex space-x-2 ml-4">
           <button
-            onClick={() => onEdit(project)}
+            onClick={() => onEdit?.(project)}
             className="text-blue-600 hover:text-blue-800 p-1"
             title="编辑项目"
           >
             ✏️
           </button>
           <button
-            onClick={() => onDelete(project)}
+            onClick={() => onDelete?.(project)}
             className="text-red-600 hover:text-red-800 p-1"
             title="删除项目"
           >
