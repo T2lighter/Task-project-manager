@@ -30,19 +30,22 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
     }
   }, [isOpen, fetchTasks]);
 
-  // 获取可选择的任务
+  // 获取可选择的任务（排除子任务）
   const getSelectableTasks = () => {
+    // 首先排除子任务
+    const mainTasks = tasks.filter(task => !task.parentTaskId);
+    
     switch (filter) {
       case 'unassigned':
-        // 未分配到任何项目的任务
-        return tasks.filter(task => !task.projectId);
+        // 未分配到任何项目的主任务
+        return mainTasks.filter(task => !task.projectId);
       case 'other-projects':
-        // 分配到其他项目的任务
-        return tasks.filter(task => task.projectId && task.projectId !== currentProject.id);
+        // 分配到其他项目的主任务
+        return mainTasks.filter(task => task.projectId && task.projectId !== currentProject.id);
       case 'all':
       default:
-        // 所有不在当前项目的任务
-        return tasks.filter(task => task.projectId !== currentProject.id);
+        // 所有不在当前项目的主任务
+        return mainTasks.filter(task => task.projectId !== currentProject.id);
     }
   };
 
@@ -72,15 +75,18 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
     onClose();
   };
 
-  // 计算各筛选条件的任务数量
+  // 计算各筛选条件的任务数量（排除子任务）
   const getTaskCount = (filterType: string) => {
+    // 首先排除子任务
+    const mainTasks = tasks.filter(task => !task.parentTaskId);
+    
     switch (filterType) {
       case 'all':
-        return tasks.filter(task => task.projectId !== currentProject.id).length;
+        return mainTasks.filter(task => task.projectId !== currentProject.id).length;
       case 'unassigned':
-        return tasks.filter(task => !task.projectId).length;
+        return mainTasks.filter(task => !task.projectId).length;
       case 'other-projects':
-        return tasks.filter(task => task.projectId && task.projectId !== currentProject.id).length;
+        return mainTasks.filter(task => task.projectId && task.projectId !== currentProject.id).length;
       default:
         return 0;
     }
