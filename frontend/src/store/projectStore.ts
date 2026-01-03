@@ -113,6 +113,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     return {
       projectId,
       projectName: project?.name || '未知项目',
+      projectStatus: project?.status || 'planning',
       totalTasks: project?.taskCount || 0,
       completedTasks: project?.completedTaskCount || 0,
       inProgressTasks: 0,

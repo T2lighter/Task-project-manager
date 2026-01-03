@@ -104,7 +104,7 @@ const ObjectiveForm: React.FC<ObjectiveFormProps> = ({
     }
   };
 
-  const getStatusConfig = (status: Objective['status']) => {
+  const getStatusConfig = (_status: Objective['status']) => {
     switch (status) {
       case 'draft':
         return { color: 'text-gray-600', text: '草稿' };

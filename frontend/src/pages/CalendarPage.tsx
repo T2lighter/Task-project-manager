@@ -90,7 +90,7 @@ const CalendarPage: React.FC = () => {
   const handleCreateTask = useCallback((taskData: Omit<Task, 'id' | 'userId'>) => {
     const newTaskData = {
       ...taskData,
-      dueDate: taskData.dueDate || selectedDate,
+      dueDate: taskData.dueDate || selectedDate || undefined,
       createdAt: selectedDate || taskData.createdAt || new Date()
     };
     createTask(newTaskData);

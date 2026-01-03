@@ -177,7 +177,8 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
                   }`}
                   onClick={(e) => {
                     // 如果点击的是复选框或其父元素，不处理
-                    if ((e.target as HTMLElement).type === 'checkbox' || 
+                    const target = e.target as HTMLInputElement;
+                    if (target.tagName === 'INPUT' || 
                         (e.target as HTMLElement).closest('input[type="checkbox"]')) {
                       return;
                     }

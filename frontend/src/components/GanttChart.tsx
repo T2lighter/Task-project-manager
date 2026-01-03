@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Task } from '../types';
-import { format, differenceInDays, startOfDay, endOfDay, addDays } from 'date-fns';
+import { format, differenceInDays, startOfDay, addDays } from 'date-fns';
 
 interface GanttChartProps {
   tasks: Task[];

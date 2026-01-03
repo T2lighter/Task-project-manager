@@ -4,9 +4,9 @@ import { format } from 'date-fns';
 
 interface ProjectCardProps {
   project: Project;
-  onEdit: (project: Project) => void;
-  onDelete: (project: Project) => void;
-  onView: (project: Project) => void;
+  onEdit?: (project: Project) => void;
+  onDelete?: (project: Project) => void;
+  onView?: (project: Project) => void;
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ 
