@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import Modal from './Modal';
+import RichTextEditor from './RichTextEditor';
 
 interface SubtaskModalProps {
   isOpen: boolean;
@@ -112,14 +113,12 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
           <label htmlFor="subtask-description" className="block text-sm font-medium text-gray-700 mb-1">
             描述
           </label>
-          <textarea
+          <RichTextEditor
             id="subtask-description"
-            name="description"
             value={formData.description}
-            onChange={handleChange}
-            rows={3}
+            onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
             placeholder="输入子任务描述..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            minHeight="80px"
           />
         </div>
 

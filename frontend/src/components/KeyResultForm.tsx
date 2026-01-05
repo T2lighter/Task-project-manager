@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { KeyResult } from '../types';
+import RichTextEditor from './RichTextEditor';
 
 interface KeyResultFormProps {
   keyResult?: KeyResult | null;
@@ -107,16 +108,17 @@ const KeyResultForm: React.FC<KeyResultFormProps> = ({
         <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
           关键结果描述 *
         </label>
-        <textarea
+        <RichTextEditor
           id="description"
-          name="description"
           value={formData.description}
-          onChange={handleChange}
-          rows={4}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.description ? 'border-red-500' : 'border-gray-300'
-          }`}
+          onChange={(value) => {
+            setFormData(prev => ({ ...prev, description: value }));
+            if (errors.description) {
+              setErrors(prev => ({ ...prev, description: '' }));
+            }
+          }}
           placeholder="详细描述这个关键结果的具体内容和预期成果..."
+          minHeight="100px"
         />
         {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
       </div>

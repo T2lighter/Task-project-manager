@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
+import RichTextEditor from './RichTextEditor';
 
 interface SubtaskFormProps {
   parentTask: Task;
@@ -74,14 +75,12 @@ const SubtaskForm: React.FC<SubtaskFormProps> = ({
         <label htmlFor="subtask-description" className="block text-xs font-medium text-gray-700 mb-1">
           描述（可选）
         </label>
-        <textarea
+        <RichTextEditor
           id="subtask-description"
-          name="description"
           value={formData.description}
-          onChange={handleChange}
-          rows={1}
+          onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
           placeholder="输入子任务描述..."
-          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          minHeight="60px"
         />
       </div>
 

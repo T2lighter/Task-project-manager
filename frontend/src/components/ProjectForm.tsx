@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Project } from '../types';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
+import RichTextEditor from './RichTextEditor';
 
 interface ProjectFormProps {
   project: Project | null;
@@ -126,16 +127,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         <label htmlFor="project-description" className="block text-sm font-medium text-gray-700 mb-1">
           项目描述
         </label>
-        <textarea
+        <RichTextEditor
           id="project-description"
-          name="description"
           value={formData.description}
-          onChange={handleChange}
-          rows={3}
-          autoComplete="off"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
           placeholder="请输入项目描述"
-        ></textarea>
+          minHeight="80px"
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

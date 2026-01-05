@@ -492,7 +492,10 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
                       </span>
                     </div>
                     {objective.description && (
-                      <p className="text-gray-600 text-xs mb-1">{objective.description}</p>
+                      <div 
+                        className="text-gray-600 text-xs mb-1 prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:ml-3 [&_ol]:list-decimal [&_ol]:ml-3 [&_li]:my-0 [&_p]:my-0"
+                        dangerouslySetInnerHTML={{ __html: objective.description }}
+                      />
                     )}
                     <div className="flex items-center gap-3 text-xs text-gray-500">
                       {objective.startDate && (
@@ -638,7 +641,10 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
                                         </span>
                                       </div>
                                       {keyResult.description && (
-                                        <p className="text-gray-700 text-xs mb-1 font-medium">{keyResult.description}</p>
+                                        <div 
+                                          className="text-gray-700 text-xs mb-1 font-medium prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:ml-3 [&_ol]:list-decimal [&_ol]:ml-3 [&_li]:my-0 [&_p]:my-0"
+                                          dangerouslySetInnerHTML={{ __html: keyResult.description }}
+                                        />
                                       )}
                                       <div className="flex items-center gap-3 text-xs text-gray-500">
                                         <span>进度: {keyResult.progress}%</span>
@@ -727,7 +733,10 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
                                       </span>
                                     </div>
                                     {resource.description && (
-                                      <p className="text-gray-600 text-xs mb-1">{resource.description}</p>
+                                      <div 
+                                        className="text-gray-600 text-xs mb-1 prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:ml-3 [&_ol]:list-decimal [&_ol]:ml-3 [&_li]:my-0 [&_p]:my-0"
+                                        dangerouslySetInnerHTML={{ __html: resource.description }}
+                                      />
                                     )}
                                     <div className="flex items-center gap-3 text-xs text-gray-500">
                                       <span>类型: {
@@ -787,7 +796,10 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
                                       </span>
                                     </div>
                                     {plan.description && (
-                                      <p className="text-gray-600 text-xs mb-1">{plan.description}</p>
+                                      <div 
+                                        className="text-gray-600 text-xs mb-1 prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:ml-3 [&_ol]:list-decimal [&_ol]:ml-3 [&_li]:my-0 [&_p]:my-0"
+                                        dangerouslySetInnerHTML={{ __html: plan.description }}
+                                      />
                                     )}
                                   </div>
                                   <div className="flex gap-1 ml-2">
@@ -858,7 +870,10 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
                                         </span>
                                       </div>
                                       {check.description && (
-                                        <p className="text-gray-600 text-xs mb-1">{check.description}</p>
+                                        <div 
+                                          className="text-gray-600 text-xs mb-1 prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:ml-3 [&_ol]:list-decimal [&_ol]:ml-3 [&_li]:my-0 [&_p]:my-0"
+                                          dangerouslySetInnerHTML={{ __html: check.description }}
+                                        />
                                       )}
                                       <div className="text-xs text-gray-500 mb-1">
                                         完成进度: {completedCount} / {totalCount} ({progress}%)

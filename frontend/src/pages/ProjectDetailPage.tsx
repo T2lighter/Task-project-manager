@@ -352,7 +352,10 @@ const ProjectDetailPage: React.FC = () => {
               </span>
             </div>
             {currentProject.description && (
-              <p className="text-xs text-gray-600 max-w-md mx-auto truncate">{currentProject.description}</p>
+              <div 
+                className="text-xs text-gray-600 max-w-md mx-auto truncate prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:ml-3 [&_ol]:list-decimal [&_ol]:ml-3 [&_li]:my-0 [&_p]:my-0"
+                dangerouslySetInnerHTML={{ __html: currentProject.description }}
+              />
             )}
           </div>
 

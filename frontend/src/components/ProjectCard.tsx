@@ -79,9 +79,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
             {project.name}
           </h3>
           {project.description && (
-            <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-              {project.description}
-            </p>
+            <div 
+              className="text-sm text-gray-600 mt-1 line-clamp-2 prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:ml-3 [&_ol]:list-decimal [&_ol]:ml-3 [&_li]:my-0 [&_p]:my-0"
+              dangerouslySetInnerHTML={{ __html: project.description }}
+            />
           )}
         </div>
         

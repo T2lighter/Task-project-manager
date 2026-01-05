@@ -202,7 +202,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
       {/* 第二行：任务描述 */}
       {task.description && !compact && (
-        <p className="text-xs text-gray-600 mt-0.5">{task.description}</p>
+        <div 
+          className="text-xs text-gray-600 mt-0.5 prose prose-sm max-w-none
+                     [&_ul]:list-disc [&_ul]:ml-3 [&_ul]:my-0.5 
+                     [&_ol]:list-decimal [&_ol]:ml-3 [&_ol]:my-0.5
+                     [&_li]:my-0 [&_p]:my-0"
+          dangerouslySetInnerHTML={{ __html: task.description }}
+        />
       )}
 
       {/* 第三行：标签 */}

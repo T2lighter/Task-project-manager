@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ExecutionPlan } from '../types';
+import RichTextEditor from './RichTextEditor';
 
 interface ExecutionPlanFormProps {
   executionPlan?: ExecutionPlan | null;
@@ -148,14 +149,12 @@ const ExecutionPlanForm: React.FC<ExecutionPlanFormProps> = ({
         <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
           详细描述
         </label>
-        <textarea
+        <RichTextEditor
           id="description"
-          name="description"
           value={formData.description}
-          onChange={handleChange}
-          rows={6}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
           placeholder="详细描述执行计划，包括具体步骤、时间安排、负责人、依赖关系、里程碑等..."
+          minHeight="120px"
         />
       </div>
 

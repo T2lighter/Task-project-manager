@@ -289,7 +289,7 @@ const ProjectsPage: React.FC = () => {
               className="bg-blue-600 text-white w-10 h-10 rounded-lg text-lg font-bold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center"
               title="创建项目"
             >
-              +
+              ➕
             </button>
           )}
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Objective } from '../types';
+import RichTextEditor from './RichTextEditor';
 
 interface ObjectiveFormProps {
   objective?: Objective | null;
@@ -145,14 +146,12 @@ const ObjectiveForm: React.FC<ObjectiveFormProps> = ({
         <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
           目标描述
         </label>
-        <textarea
+        <RichTextEditor
           id="description"
-          name="description"
           value={formData.description}
-          onChange={handleChange}
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
           placeholder="详细描述这个目标..."
+          minHeight="80px"
         />
       </div>
 
