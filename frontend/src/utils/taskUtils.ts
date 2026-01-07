@@ -1,5 +1,6 @@
 import { Task } from '../types';
 import { PRIORITY_CONFIG } from '../constants';
+import { taskDateUtils } from './dateUtils';
 
 // 获取任务优先级配置
 export const getPriorityConfig = (task: Task) => {
@@ -63,39 +64,17 @@ export const sortTasksByStatus = (tasks: Task[]): Task[] => {
   });
 };
 
-// 检查任务是否逾期
+// 检查任务是否逾期（使用统一的工具函数）
 export const isTaskOverdue = (task: Task): boolean => {
-  if (task.status === 'completed' || !task.dueDate) return false;
-  return new Date(task.dueDate) < new Date();
+  return taskDateUtils.isOverdue(task);
 };
 
-// 检查任务是否今日到期
+// 检查任务是否今日到期（使用统一的工具函数）
 export const isTaskDueToday = (task: Task): boolean => {
-  if (task.status === 'completed' || !task.dueDate) return false;
-  
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-  const dueDate = new Date(task.dueDate);
-  
-  return dueDate >= todayStart && dueDate <= todayEnd;
+  return taskDateUtils.isDueToday(task);
 };
 
-// 检查任务是否本周到期
+// 检查任务是否本周到期（使用统一的工具函数）
 export const isTaskDueThisWeek = (task: Task): boolean => {
-  if (task.status === 'completed' || !task.dueDate) return false;
-  
-  const today = new Date();
-  const startOfWeek = new Date(today);
-  const dayOfWeek = today.getDay();
-  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-  startOfWeek.setDate(diff);
-  startOfWeek.setHours(0, 0, 0, 0);
-  
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
-  
-  const dueDate = new Date(task.dueDate);
-  return dueDate >= startOfWeek && dueDate <= endOfWeek;
+  return taskDateUtils.isDueThisWeek(task);
 };

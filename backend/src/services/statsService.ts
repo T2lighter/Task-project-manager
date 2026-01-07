@@ -3,6 +3,48 @@ import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
 
 const prisma = new PrismaClient();
 
+// 任务日期检查工具函数（使用date-fns优化实现）
+export const taskDateUtils = {
+  // 检查任务是否逾期（截止日期后一天才算逾期）
+  isOverdue: (task: any, now: Date = new Date()): boolean => {
+    if (task.status === 'completed' || !task.dueDate) return false;
+    
+    const dueDate = new Date(task.dueDate);
+    const dayAfterDueDate = new Date(dueDate);
+    dayAfterDueDate.setDate(dueDate.getDate() + 1);
+    dayAfterDueDate.setHours(0, 0, 0, 0);
+    
+    return now >= dayAfterDueDate;
+  },
+
+  // 检查任务是否今日到期
+  isDueToday: (task: any, now: Date = new Date()): boolean => {
+    if (task.status === 'completed' || !task.dueDate) return false;
+    
+    const todayStart = startOfDay(now);
+    const todayEnd = endOfDay(now);
+    const dueDate = new Date(task.dueDate);
+    
+    return dueDate >= todayStart && dueDate <= todayEnd;
+  },
+
+  // 检查任务是否本周到期
+  isDueThisWeek: (task: any, now: Date = new Date()): boolean => {
+    if (task.status === 'completed' || !task.dueDate) return false;
+    
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // 周一开始
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    const dueDate = new Date(task.dueDate);
+    
+    return dueDate >= weekStart && dueDate <= weekEnd;
+  }
+};
+
+// 保持向后兼容性
+export const isTaskOverdue = taskDateUtils.isOverdue;
+export const isTaskDueToday = taskDateUtils.isDueToday;
+export const isTaskDueThisWeek = taskDateUtils.isDueThisWeek;
+
 export interface TaskStats {
   total: number;
   completed: number;
@@ -87,22 +129,11 @@ export const getTaskStats = async (userId: number, period: 'day' | 'week' | 'mon
     const inProgress = allTasks.filter(task => task.status === 'in-progress').length;
     const pending = allTasks.filter(task => task.status === 'pending').length;
 
-    // 计算逾期任务（所有未完成且截止日期已过的任务）
-    const overdue = allTasks.filter(task => 
-      task.status !== 'completed' && 
-      task.dueDate && 
-      new Date(task.dueDate) < now
-    ).length;
+    // 使用统一的工具函数计算逾期任务
+    const overdue = allTasks.filter(task => isTaskOverdue(task, now)).length;
 
-    // 计算今日到期任务
-    const todayStart = startOfDay(now);
-    const todayEnd = endOfDay(now);
-    const dueToday = allTasks.filter(task => 
-      task.status !== 'completed' &&
-      task.dueDate && 
-      new Date(task.dueDate) >= todayStart && 
-      new Date(task.dueDate) <= todayEnd
-    ).length;
+    // 使用统一的工具函数计算今日到期任务
+    const dueToday = allTasks.filter(task => isTaskDueToday(task, now)).length;
 
     const completionRate = total > 0 ? (completed / total) * 100 : 0;
     const overdueRate = total > 0 ? (overdue / total) * 100 : 0;
@@ -412,12 +443,8 @@ export const getProjectTaskStats = async (userId: number): Promise<ProjectTaskSt
       const inProgressTasks = tasks.filter(task => task.status === 'in-progress').length;
       const pendingTasks = tasks.filter(task => task.status === 'pending').length;
       
-      // 计算逾期任务
-      const overdueTasks = tasks.filter(task => 
-        task.status !== 'completed' && 
-        task.dueDate && 
-        new Date(task.dueDate) < now
-      ).length;
+      // 使用统一的工具函数计算逾期任务
+      const overdueTasks = tasks.filter(task => isTaskOverdue(task, now)).length;
 
       const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
       const progress = completionRate;

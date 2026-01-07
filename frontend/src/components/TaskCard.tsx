@@ -1,7 +1,7 @@
 import React from 'react';
 import { Task } from '../types';
 import { format } from 'date-fns';
-import { getPriorityConfig } from '../utils/taskUtils';
+import { getPriorityConfig, isTaskOverdue, isTaskDueToday, isTaskDueThisWeek } from '../utils/taskUtils';
 import { TASK_STATUS_NAMES } from '../constants';
 import SubtaskList from './SubtaskList';
 import SubtaskModal from './SubtaskModal';
@@ -277,10 +277,17 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 {task.category.name}
               </span>
             )}
-            {/* 截止日期放在最后，显示在最右侧 */}
+            {/* 截止日期和逾期状态 */}
             {task.dueDate && (
-              <span className={`bg-green-100 text-green-800 ${compact ? 'px-1 py-0.5' : 'px-1.5 py-0.5'} rounded-full ${compact ? 'text-xs' : 'text-xs'}`}>
+              <span className={`${
+                isTaskOverdue(task) 
+                  ? 'bg-red-100 text-red-800' 
+                  : isTaskDueToday(task)
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-green-100 text-green-800'
+              } ${compact ? 'px-1 py-0.5' : 'px-1.5 py-0.5'} rounded-full ${compact ? 'text-xs' : 'text-xs'}`}>
                 {format(new Date(task.dueDate), compact ? 'MM-dd' : 'MM-dd')}
+                {isTaskOverdue(task) && ' ⚠️'}
               </span>
             )}
       </div>

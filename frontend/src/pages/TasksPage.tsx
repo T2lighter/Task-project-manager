@@ -10,6 +10,7 @@ import PersonalizedView from '../components/PersonalizedView';
 import { useTaskStore } from '../store/taskStore';
 import { useLabelStore } from '../store/labelStore';
 import { Task } from '../types';
+import { isTaskOverdue, isTaskDueToday, isTaskDueThisWeek } from '../utils/taskUtils';
 
 const TasksPage: React.FC = () => {
   const { tasks, fetchTasks, createTask, updateTask, deleteTask, batchDeleteTasks, createSubtask, copyTask } = useTaskStore();
@@ -27,7 +28,7 @@ const TasksPage: React.FC = () => {
   const location = useLocation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed' | 'overdue' | 'due-today' | 'this-week'>('all');
+  const [filter, setFilter] = useState<'all' | 'overdue' | 'due-today' | 'this-week'>('all');
   const [viewMode, setViewMode] = useState<'quadrant' | 'kanban' | 'personalized'>('quadrant'); // 新增：个性化视图
   const [searchQuery, setSearchQuery] = useState(''); // 新增：搜索查询状态
   const [showLabelManager, setShowLabelManager] = useState(false); // 新增：标签管理对话框状态
@@ -78,8 +79,25 @@ const TasksPage: React.FC = () => {
   // 从location.state中获取筛选条件并应用
   React.useEffect(() => {
     const filterState = location.state?.filter;
-    if (filterState && ['all', 'pending', 'in-progress', 'completed', 'overdue', 'due-today', 'this-week'].includes(filterState)) {
-      setFilter(filterState as 'all' | 'pending' | 'in-progress' | 'completed' | 'overdue' | 'due-today' | 'this-week');
+    if (filterState && ['all', 'overdue', 'due-today', 'this-week'].includes(filterState)) {
+      setFilter(filterState);
+    }
+  }, [location.state]);
+
+  // 从location.state中获取四象限筛选条件
+  React.useEffect(() => {
+    const quadrantFilterState = location.state?.quadrantFilter;
+    if (quadrantFilterState) {
+      // 设置四象限筛选逻辑
+      console.log('四象限筛选:', quadrantFilterState);
+    }
+  }, [location.state]);
+
+  // 从location.state中获取视图模式并应用（支持从个人主页跳转到看板视图）
+  React.useEffect(() => {
+    const viewModeState = location.state?.viewMode;
+    if (viewModeState && ['quadrant', 'kanban', 'personalized'].includes(viewModeState)) {
+      setViewMode(viewModeState as 'quadrant' | 'kanban' | 'personalized');
     }
   }, [location.state]);
 
@@ -463,9 +481,14 @@ const TasksPage: React.FC = () => {
     searchQuery
   );
 
-  // 任务优先级排序函数
+  // 任务优先级排序函数（已完成的任务排在末尾）
   const sortTasksByPriority = (tasks: Task[]) => {
     return tasks.sort((a, b) => {
+      // 首先按状态排序：未完成的任务在前，已完成的任务在后
+      if (a.status === 'completed' && b.status !== 'completed') return 1;
+      if (a.status !== 'completed' && b.status === 'completed') return -1;
+      
+      // 如果都是已完成或都是未完成，再按优先级排序
       // 定义优先级权重：紧急重要(4) > 紧急(3) > 重要(2) > 普通(1)
       const getPriorityWeight = (task: Task) => {
         if (task.urgency && task.importance) return 4; // 紧急重要
@@ -494,50 +517,17 @@ const TasksPage: React.FC = () => {
     sortTasksByPriority(tasks.filter(task => {
       // 首先排除子任务
       if (task.parentTaskId) return false;
-      
-      const now = new Date();
-      const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-      
-      // 计算本周的开始和结束时间
-      const startOfWeek = new Date(today);
-      const dayOfWeek = today.getDay();
-      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // 调整为周一开始
-      startOfWeek.setDate(diff);
-      startOfWeek.setHours(0, 0, 0, 0);
-      
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
 
       switch (filter) {
-        case 'pending':
-          return task.status === 'pending';
-        case 'in-progress':
-          return task.status === 'in-progress';
-        case 'completed':
-          return task.status === 'completed';
         case 'overdue':
-          // 逾期任务：未完成且截止日期已过
-          return task.status !== 'completed' && 
-                 task.dueDate && 
-                 new Date(task.dueDate) < now;
+          return isTaskOverdue(task);
         case 'due-today':
-          // 今日到期：未完成且截止日期在今天
-          return task.status !== 'completed' &&
-                 task.dueDate && 
-                 new Date(task.dueDate) >= todayStart && 
-                 new Date(task.dueDate) <= todayEnd;
+          return isTaskDueToday(task);
         case 'this-week':
-          // 本周任务：未完成且截止日期在本周内
-          return task.status !== 'completed' &&
-                 task.dueDate && 
-                 new Date(task.dueDate) >= startOfWeek && 
-                 new Date(task.dueDate) <= endOfWeek;
+          return isTaskDueThisWeek(task);
         default:
-          // 默认显示待办和进行中的任务
-          return task.status === 'pending' || task.status === 'in-progress';
+          // 全部任务：包含所有任务（包括已完成的，但会在排序中处理顺序）
+          return true;
       }
     })),
     searchQuery
@@ -546,50 +536,16 @@ const TasksPage: React.FC = () => {
   // 计算各种筛选条件的任务数量（排除子任务）
   const getTaskCount = (filterType: string) => {
     const mainTasks = tasks.filter(t => !t.parentTaskId); // 只计算主任务
-    const now = new Date();
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-    
-    const startOfWeek = new Date(today);
-    const dayOfWeek = today.getDay();
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    startOfWeek.setDate(diff);
-    startOfWeek.setHours(0, 0, 0, 0);
-    
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
 
     switch (filterType) {
       case 'all':
         return mainTasks.length;
-      case 'pending':
-        return mainTasks.filter(t => t.status === 'pending').length;
-      case 'in-progress':
-        return mainTasks.filter(t => t.status === 'in-progress').length;
-      case 'completed':
-        return mainTasks.filter(t => t.status === 'completed').length;
       case 'overdue':
-        return mainTasks.filter(t => 
-          t.status !== 'completed' && 
-          t.dueDate && 
-          new Date(t.dueDate) < now
-        ).length;
+        return mainTasks.filter(t => isTaskOverdue(t)).length;
       case 'due-today':
-        return mainTasks.filter(t => 
-          t.status !== 'completed' &&
-          t.dueDate && 
-          new Date(t.dueDate) >= todayStart && 
-          new Date(t.dueDate) <= todayEnd
-        ).length;
+        return mainTasks.filter(t => isTaskDueToday(t)).length;
       case 'this-week':
-        return mainTasks.filter(t => 
-          t.status !== 'completed' &&
-          t.dueDate && 
-          new Date(t.dueDate) >= startOfWeek && 
-          new Date(t.dueDate) <= endOfWeek
-        ).length;
+        return mainTasks.filter(t => isTaskDueThisWeek(t)).length;
       default:
         return 0;
     }
@@ -732,24 +688,6 @@ const TasksPage: React.FC = () => {
                 className={`px-2 py-1 rounded-full text-xs ${filter === 'all' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
                 全部 ({getTaskCount('all')})
-              </button>
-              <button
-                onClick={() => setFilter('pending')}
-                className={`px-2 py-1 rounded-full text-xs ${filter === 'pending' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              >
-                待办 ({getTaskCount('pending')})
-              </button>
-              <button
-                onClick={() => setFilter('in-progress')}
-                className={`px-2 py-1 rounded-full text-xs ${filter === 'in-progress' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              >
-                进行中 ({getTaskCount('in-progress')})
-              </button>
-              <button
-                onClick={() => setFilter('completed')}
-                className={`px-2 py-1 rounded-full text-xs ${filter === 'completed' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              >
-                已完成 ({getTaskCount('completed')})
               </button>
               <button
                 onClick={() => setFilter('overdue')}

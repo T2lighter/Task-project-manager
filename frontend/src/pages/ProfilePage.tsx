@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useTaskStore } from '../store/taskStore';
 import { useProjectStore } from '../store/projectStore';
 import { useStatsStore } from '../store/statsStore';
+import { isTaskOverdue, isTaskDueToday, isTaskDueThisWeek } from '../utils/taskUtils';
 import StatsCard from '../components/StatsCard';
 import TaskStatusPieChart from '../components/TaskStatusPieChart';
 import QuadrantPieChart from '../components/QuadrantPieChart';
@@ -283,24 +284,11 @@ const ProfilePage: React.FC = () => {
     const pendingTasks = mainTasks.filter(task => task.status === 'pending');
     const completedTasks = mainTasks.filter(task => task.status === 'completed');
     
-    // 获取今日到期的任务
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-    
-    const dueTodayTasks = mainTasks.filter(task => 
-      task.dueDate && 
-      task.status !== 'completed' &&
-      new Date(task.dueDate) >= todayStart && 
-      new Date(task.dueDate) <= todayEnd
-    );
+    // 获取今日到期的任务（使用工具函数避免重复逻辑）
+    const dueTodayTasks = mainTasks.filter(task => isTaskDueToday(task));
 
-    // 获取逾期任务
-    const overdueTasks = mainTasks.filter(task => 
-      task.dueDate && 
-      task.status !== 'completed' &&
-      new Date(task.dueDate) < todayStart
-    );
+    // 获取逾期任务（使用工具函数避免重复逻辑）
+    const overdueTasks = mainTasks.filter(task => isTaskOverdue(task));
 
     // 获取紧急重要任务
     const urgentImportantTasks = mainTasks.filter(task => 
@@ -830,7 +818,7 @@ const ProfilePage: React.FC = () => {
   };
 
   // 计算基础统计数据（用于卡片显示，只统计主任务）
-  const mainTasks = tasks.filter(task => !task.parentTaskId);
+  const mainTasks = tasks ? tasks.filter(task => !task.parentTaskId) : [];
   const allTasks = mainTasks.length;
   const completedTasks = mainTasks.filter(task => task.status === 'completed').length;
   
@@ -841,13 +829,10 @@ const ProfilePage: React.FC = () => {
   const pendingTaskList = mainTasks.filter(task => task.status === 'pending');
   const pendingTasks = pendingTaskList.length;
 
-  // 计算逾期任务列表和数量
+  // 计算逾期任务列表和数量（截止日期后一天才算逾期）
   const now = new Date();
-  const overdueTaskList = mainTasks.filter(task => 
-    task.status !== 'completed' && 
-    task.dueDate && 
-    new Date(task.dueDate) < now
-  );
+  // 使用统一的工具函数计算逾期任务
+  const overdueTaskList = mainTasks.filter(task => isTaskOverdue(task));
   const overdueTasks = overdueTaskList.length;
 
   // 计算项目统计数据
@@ -866,34 +851,11 @@ const ProfilePage: React.FC = () => {
   // 计算待办项目列表和数量（planning状态对应待办）
   const pendingProjectList = allProjects.filter(project => project.status === 'planning');
 
-  // 计算今日到期任务
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-  const dueTodayTasks = mainTasks.filter(task => 
-    task.status !== 'completed' &&
-    task.dueDate && 
-    new Date(task.dueDate) >= todayStart && 
-    new Date(task.dueDate) <= todayEnd
-  ).length;
+  // 计算今日到期任务（使用工具函数避免重复逻辑）
+  const dueTodayTasks = mainTasks.filter(task => isTaskDueToday(task)).length;
 
-  // 计算本周任务
-  const startOfWeek = new Date(today);
-  const dayOfWeek = today.getDay();
-  const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // 调整为周一开始
-  startOfWeek.setDate(diff);
-  startOfWeek.setHours(0, 0, 0, 0);
-  
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
-  
-  const thisWeekTasks = mainTasks.filter(task => 
-    task.status !== 'completed' &&
-    task.dueDate && 
-    new Date(task.dueDate) >= startOfWeek && 
-    new Date(task.dueDate) <= endOfWeek
-  ).length;
+  // 计算本周任务（使用工具函数避免重复逻辑）
+  const thisWeekTasks = mainTasks.filter(task => isTaskDueThisWeek(task)).length;
 
   const completionRate = allTasks > 0 ? ((completedTasks / allTasks) * 100).toFixed(1) : '0';
 
@@ -1056,19 +1018,19 @@ const ProfilePage: React.FC = () => {
           title="已完成"
           value={completedTasks}
           color="green"
-          onClick={() => navigate('/tasks', { state: { filter: 'completed' } })}
+          onClick={() => navigate('/tasks', { state: { viewMode: 'kanban' } })}
         />
         <StatsCard
           title="进行中"
           value={inProgressTasks}
           color="blue"
-          onClick={() => navigate('/tasks', { state: { filter: 'in-progress' } })}
+          onClick={() => navigate('/tasks', { state: { viewMode: 'kanban' } })}
         />
         <StatsCard
           title="待办"
           value={pendingTasks}
           color="yellow"
-          onClick={() => navigate('/tasks', { state: { filter: 'pending' } })}
+          onClick={() => navigate('/tasks', { state: { viewMode: 'kanban' } })}
         />
         <StatsCard
           title="四象限总览"
@@ -1091,14 +1053,20 @@ const ProfilePage: React.FC = () => {
       {/* 图表区域 - 三个组件并排显示 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 任务状态分布饼图 */}
-        {taskStats && (
-          <TaskStatusPieChart stats={taskStats} />
-        )}
-        
-        {/* 四象限分布饼图 */}
-        {quadrantStats && (
-          <QuadrantPieChart stats={quadrantStats} />
-        )}
+          {taskStats && (
+            <TaskStatusPieChart 
+              stats={taskStats} 
+onStatusClick={(status) => navigate('/tasks', { state: { viewMode: 'kanban', filter: status } })}
+            />
+          )}
+          
+          {/* 四象限分布饼图 */}
+          {quadrantStats && (
+            <QuadrantPieChart 
+              stats={quadrantStats} 
+              onQuadrantClick={(quadrant) => navigate('/tasks', { state: { quadrantFilter: quadrant } })}
+            />
+          )}
 
         {/* 任务耗时排行 */}
         <TaskDurationRanking 
