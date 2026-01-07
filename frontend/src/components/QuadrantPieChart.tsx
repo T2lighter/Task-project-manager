@@ -4,6 +4,7 @@ import { QuadrantStats } from '../types';
 
 interface QuadrantPieChartProps {
   stats: QuadrantStats;
+  onQuadrantClick?: (quadrant: string) => void;
 }
 
 const COLORS = {
@@ -13,7 +14,8 @@ const COLORS = {
   neitherUrgentNorImportant: '#6B7280', // gray-500
 };
 
-const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats }) => {
+const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantClick }) => {
+  const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
   const total = stats.urgentImportant + stats.importantNotUrgent + stats.urgentNotImportant + stats.neitherUrgentNorImportant;
   
   // 按照用户要求的顺序排列：紧急且重要 → 重要但不紧急 → 紧急但不重要 → 既不紧急也不重要
@@ -23,28 +25,32 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats }) => {
       shortName: '紧急重要',
       value: stats.urgentImportant, 
       color: COLORS.urgentImportant,
-      key: 'urgentImportant'
+      key: 'urgentImportant',
+      description: '需要立即处理'
     },
     { 
       name: '重要但不紧急', 
-      shortName: '不紧急重要',
+      shortName: '重要不紧急',
       value: stats.importantNotUrgent, 
       color: COLORS.importantNotUrgent,
-      key: 'importantNotUrgent'
+      key: 'importantNotUrgent',
+      description: '计划安排处理'
     },
     { 
       name: '紧急但不重要', 
       shortName: '紧急不重要',
       value: stats.urgentNotImportant, 
       color: COLORS.urgentNotImportant,
-      key: 'urgentNotImportant'
+      key: 'urgentNotImportant',
+      description: '可以委托他人'
     },
     { 
       name: '既不紧急也不重要', 
-      shortName: '既不紧急也不重要',
+      shortName: '不紧急不重要',
       value: stats.neitherUrgentNorImportant, 
       color: COLORS.neitherUrgentNorImportant,
-      key: 'neitherUrgentNorImportant'
+      key: 'neitherUrgentNorImportant',
+      description: '考虑是否必要'
     },
   ].filter(item => item.value > 0);
 
@@ -66,33 +72,53 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats }) => {
 
   if (total === 0) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 h-96 flex flex-col">
-        <h3 className="text-base font-semibold text-gray-800 mb-3">四象限分布</h3>
-        <div className="flex-1 flex items-center justify-center text-gray-500">
-          暂无任务数据
+      <div className="bg-gradient-to-br from-white to-blue-50 p-5 rounded-xl shadow-lg border border-blue-100 h-80 flex flex-col transition-all duration-300 hover:shadow-xl">
+        <div className="flex items-center mb-4">
+          <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+          <h3 className="text-lg font-bold text-gray-800">四象限分布</h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-6xl mb-4">🎯</div>
+            <p className="text-gray-500 text-lg">暂无四象限数据</p>
+            <p className="text-gray-400 text-sm mt-2">为任务设置紧急度和重要性</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 h-96 flex flex-col">
-      <h3 className="text-base font-semibold text-gray-800 mb-3">四象限分布</h3>
+    <div className="bg-white p-6 rounded-xl border border-gray-100 h-96 flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-base font-semibold text-gray-800">四象限分布</h3>
+        <span className="text-sm text-gray-600">{total}</span>
+      </div>
+      
       <div className="flex-1 flex items-center">
         <div className="flex-1 relative">
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={45}
-                outerRadius={75}
+                innerRadius={50}
+                outerRadius={85}
                 paddingAngle={2}
                 dataKey="value"
+                animationBegin={0}
+                animationDuration={600}
+                onMouseEnter={(_, index) => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex(null)}
               >
                 {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.color} 
+                    stroke="white" 
+                    strokeWidth={1}
+                  />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
@@ -102,24 +128,50 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats }) => {
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">{total}</div>
-              <div className="text-xs text-gray-600">总数</div>
+              <div className="text-xs text-gray-500">总任务</div>
             </div>
           </div>
         </div>
         
         {/* 右侧图例 */}
-        <div className="ml-4 space-y-2">
-          {data.map((item) => {
+        <div className="ml-9 space-y-4 w-32">
+          {data.map((item, index) => {
             const percentage = ((item.value / total) * 100).toFixed(0);
+            const isActive = activeIndex === index;
             return (
-              <div key={item.key} className="flex items-center text-sm">
-                <div 
-                  className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
-                  style={{ backgroundColor: item.color }}
-                ></div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-gray-900 font-medium text-xs">{item.shortName}</div>
-                  <div className="text-gray-500 text-xs">{percentage}%</div>
+              <div 
+                key={item.key} 
+                className="cursor-pointer"
+                onMouseEnter={() => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex(null)}
+                onClick={() => onQuadrantClick && onQuadrantClick(item.key)}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className={`font-semibold text-sm ${
+                    item.key === 'urgentImportant' ? 'text-red-600' :
+                    item.key === 'importantNotUrgent' ? 'text-emerald-600' :
+                    item.key === 'urgentNotImportant' ? 'text-amber-600' :
+                    'text-gray-600'
+                  }`}>
+                    {item.shortName}({item.value})
+                  </div>
+                  <div className={`text-sm font-semibold ${
+                    item.key === 'urgentImportant' ? 'text-red-500' :
+                    item.key === 'importantNotUrgent' ? 'text-emerald-500' :
+                    item.key === 'urgentNotImportant' ? 'text-amber-500' :
+                    'text-gray-500'
+                  }`}>
+                    {percentage}%
+                  </div>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-0.5">
+                  <div 
+                    className="h-0.5 rounded-full"
+                    style={{ 
+                      width: `${percentage}%`, 
+                      backgroundColor: item.color
+                    }}
+                  ></div>
                 </div>
               </div>
             );
