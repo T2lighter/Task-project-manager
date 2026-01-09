@@ -11,6 +11,8 @@ import { useTaskStore } from '../store/taskStore';
 import { useLabelStore } from '../store/labelStore';
 import { Task } from '../types';
 import { isTaskOverdue, isTaskDueToday, isTaskDueThisWeek } from '../utils/taskUtils';
+import { UI_COLORS } from '../utils/colorUtils'; // 新增：统一颜色配置
+import { CARD_STYLES, getCardStyle, combineStyles, getCardHover, getCardShadow } from '../utils/cardStyles';
 
 const TasksPage: React.FC = () => {
   const { tasks, fetchTasks, createTask, updateTask, deleteTask, batchDeleteTasks, createSubtask, copyTask } = useTaskStore();
@@ -552,12 +554,12 @@ const TasksPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-2">
+    <div className={CARD_STYLES.spacing.spaceY2}>
       {/* 隐藏原有的h1和span，将按钮移到适当位置 */}
-      <div className="flex justify-between items-center">
+      <div className={getCardStyle('flex', 'rowBetween')}>
         {/* 隐藏h1 */}
-        <div className="w-0 h-0 overflow-hidden">
-          <h1 className="text-3xl font-bold text-gray-900">任务管理</h1>
+        <div className={CARD_STYLES.state.hidden}>
+          <h1 className={`${CARD_STYLES.text.title} ${UI_COLORS.grayText900}`}>任务管理</h1>
         </div>
       </div>
 
@@ -572,18 +574,18 @@ const TasksPage: React.FC = () => {
       />
 
       {/* 左右布局 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div className={getCardStyle('grid', 'main')}>
         {/* 左侧：任务列表 */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow p-3">
+        <div className={getCardStyle('grid', 'leftCol')}>
+          <div className={getCardStyle('container')}>
             {/* 标题行：任务列表 + 搜索框 + 添加任务按钮 + 删除按钮 */}
-            <div className="flex items-center gap-3 mb-3">
-              <h2 className="text-lg font-semibold text-gray-800 flex-shrink-0">任务列表</h2>
+            <div className={getCardStyle('flex', 'rowCenter') + ' ' + CARD_STYLES.spacing.section}>
+              <h2 className={`${CARD_STYLES.text.large} ${CARD_STYLES.text.semibold} ${UI_COLORS.grayText800} ${CARD_STYLES.layout.flexShrink0}`}>任务列表</h2>
               
               {/* 搜索框 */}
-              <div className="flex-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className={getCardStyle('searchBox', 'container')}>
+                <div className={getCardStyle('searchBox', 'icon')}>
+                  <svg className={`${CARD_STYLES.size.small} ${UI_COLORS.grayText400}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
@@ -592,15 +594,18 @@ const TasksPage: React.FC = () => {
                   placeholder="搜索任务... (Ctrl+F)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white focus:bg-white shadow-sm"
+                  className={combineStyles(
+                    getCardStyle('searchBox', 'input'),
+                    `${UI_COLORS.grayBorder300} ${UI_COLORS.placeholder} focus:ring-2 ${UI_COLORS.blueRing500} ${UI_COLORS.blueBorder500} ${UI_COLORS.gray50} hover:${UI_COLORS.bgWhite} focus:${UI_COLORS.bgWhite}`
+                  )}
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-100 rounded-r-lg transition-colors duration-200"
+                    className={getCardStyle('searchBox', 'clear')}
                     title="清除搜索 (ESC)"
                   >
-                    <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className={`${CARD_STYLES.size.small} ${UI_COLORS.grayText400} ${UI_COLORS.grayHoverText600}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -611,7 +616,12 @@ const TasksPage: React.FC = () => {
               {!isBatchDeleteMode && (
                 <button
                   onClick={() => setIsFormOpen(true)}
-                  className="bg-blue-600 text-white w-10 h-10 rounded-lg text-lg font-bold hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex-shrink-0 flex items-center justify-center"
+                  className={combineStyles(
+                    `${UI_COLORS.blue600} text-white ${CARD_STYLES.spacing.icon} ${UI_COLORS.blueHover700}`,
+                    getCardStyle('button'),
+                    getCardHover(true, true),
+                    CARD_STYLES.layout.flexShrink0 + ' ' + CARD_STYLES.position.flexCenter
+                  )}
                   title="添加任务"
                 >
                   ➕
@@ -622,7 +632,12 @@ const TasksPage: React.FC = () => {
               {!isBatchDeleteMode ? (
                 <button
                   onClick={handleToggleBatchDeleteMode}
-                  className="bg-gray-100 text-gray-600 w-10 h-10 rounded-lg text-lg hover:bg-red-100 hover:text-red-600 transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0 flex items-center justify-center"
+                  className={combineStyles(
+                    `${UI_COLORS.batchDeleteBg} ${UI_COLORS.batchDeleteText} ${getCardStyle('spacing', 'icon')}`,
+                    getCardStyle('button'),
+                    getCardHover(true, false),
+                    CARD_STYLES.layout.flexShrink0 + ' ' + CARD_STYLES.position.flexCenter
+                  )}
                   title="批量删除"
                 >
                   🗑️
@@ -630,7 +645,12 @@ const TasksPage: React.FC = () => {
               ) : (
                 <button
                   onClick={handleToggleBatchDeleteMode}
-                  className="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-all duration-200 flex-shrink-0"
+                  className={combineStyles(
+                    `${UI_COLORS.gray200} ${UI_COLORS.grayText700} ${getCardStyle('spacing', 'button')}`,
+                    getCardStyle('spacing', 'text'),
+                    getCardStyle('animation', 'transition'),
+                    CARD_STYLES.layout.flexShrink0
+                  )}
                   title="取消批量删除"
                 >
                   取消
@@ -640,11 +660,14 @@ const TasksPage: React.FC = () => {
             
             {/* 搜索结果提示 */}
             {searchQuery && (
-              <div className="mb-3 flex items-center justify-between text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                <span className="text-blue-700 font-medium">
+              <div className={combineStyles(
+                getCardStyle('toolbar'),
+                `${UI_COLORS.blue50} ${UI_COLORS.blueBorder200} ${getCardStyle('spacing', 'smallText')}`
+              )}>
+                <span className={combineStyles(UI_COLORS.blueText700, CARD_STYLES.text.medium)}>
                   找到 {filteredTasks.length} 个匹配的任务
                 </span>
-                <span className="text-blue-500">
+                <span className={`${UI_COLORS.blueText600}`}>
                   按 ESC 清除搜索
                 </span>
               </div>
@@ -652,29 +675,34 @@ const TasksPage: React.FC = () => {
 
             {/* 批量删除模式工具栏 */}
             {isBatchDeleteMode && (
-              <div className="mb-3 flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
+              <div className={combineStyles(
+                getCardStyle('toolbar'),
+                `${UI_COLORS.errorBg50} ${UI_COLORS.errorBorder200}`
+              )}>
+                <div className={getCardStyle('flex', 'rowCenter')}>
+                  <label className={combineStyles(getCardStyle('flex', 'rowCenter'), CARD_STYLES.interactive.cursorPointer)}>
                     <input
                       type="checkbox"
                       checked={selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0}
                       onChange={handleSelectAll}
-                      className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500"
+                      className={`${CARD_STYLES.size.small} ${UI_COLORS.checkboxRed} ${UI_COLORS.gray100} ${UI_COLORS.grayBorder300} ${CARD_STYLES.shape.rounded}`}
                     />
-                    <span className="text-sm text-gray-700">全选</span>
+                    <span className={`${CARD_STYLES.text.small} ${UI_COLORS.grayText700}`}>全选</span>
                   </label>
-                  <span className="text-sm text-gray-600">
+                  <span className={`${CARD_STYLES.text.small} ${UI_COLORS.grayText600}`}>
                     已选择 {selectedTaskIds.length} 个任务
                   </span>
                 </div>
                 <button
                   onClick={handleBatchDeleteClick}
                   disabled={selectedTaskIds.length === 0}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={combineStyles(
+                    combineStyles(getCardStyle('spacing', 'text'), CARD_STYLES.text.medium),
+                    getCardStyle('animation', 'transition'),
                     selectedTaskIds.length > 0
-                      ? 'bg-red-600 text-white hover:bg-red-700 shadow-md'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                      ? `${UI_COLORS.danger.bg} ${CARD_STYLES.text.white} hover:${UI_COLORS.danger.bgHover} ${getCardShadow('md')}`
+                      : `${UI_COLORS.gray300} ${UI_COLORS.grayText500} ${CARD_STYLES.interactive.disabled}`
+                  )}
                 >
                   删除选中 ({selectedTaskIds.length})
                 </button>
@@ -682,28 +710,40 @@ const TasksPage: React.FC = () => {
             )}
             
             {/* 筛选按钮 */}
-            <div className="flex flex-wrap gap-1 mb-3">
+            <div className={combineStyles(getCardStyle('flex', 'wrap'), CARD_STYLES.spacing.section)}>
               <button
                 onClick={() => setFilter('all')}
-                className={`px-2 py-1 rounded-full text-xs ${filter === 'all' ? 'bg-indigo-100 text-indigo-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  filter === 'all' ? `${UI_COLORS.primary.bgLight} ${UI_COLORS.primary.text} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
               >
                 全部 ({getTaskCount('all')})
               </button>
               <button
                 onClick={() => setFilter('overdue')}
-                className={`px-2 py-1 rounded-full text-xs ${filter === 'overdue' ? 'bg-red-100 text-red-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  filter === 'overdue' ? `${UI_COLORS.danger.bgLight} ${UI_COLORS.danger.text} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
               >
                 逾期 ({getTaskCount('overdue')})
               </button>
               <button
                 onClick={() => setFilter('due-today')}
-                className={`px-2 py-1 rounded-full text-xs ${filter === 'due-today' ? 'bg-yellow-100 text-yellow-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  filter === 'due-today' ? `${UI_COLORS.warning.bgLight} ${UI_COLORS.warning.text} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
               >
                 今日 ({getTaskCount('due-today')})
               </button>
               <button
                 onClick={() => setFilter('this-week')}
-                className={`px-2 py-1 rounded-full text-xs ${filter === 'this-week' ? 'bg-blue-100 text-blue-800 font-medium' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  filter === 'this-week' ? `${UI_COLORS.primary.bgLight} ${UI_COLORS.primary.text} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
               >
                 本周 ({getTaskCount('this-week')})
               </button>
@@ -711,11 +751,12 @@ const TasksPage: React.FC = () => {
             
             {/* 任务列表 */}
             <div 
-              className={`space-y-2 max-h-[600px] overflow-y-auto transition-all duration-200 ${
+              className={combineStyles(
+                getCardStyle('taskList', 'container'),
                 isDragOverTaskList 
-                  ? 'bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg p-2' 
+                  ? `${UI_COLORS.blue50} ${getCardStyle('taskList', 'dragOver')} ${UI_COLORS.blueBorder300}` 
                   : ''
-              }`}
+              )}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
@@ -746,23 +787,26 @@ const TasksPage: React.FC = () => {
             >
               {/* 拖拽提示 */}
               {isDragOverTaskList && (
-                <div className="text-center py-4 text-blue-600 font-medium">
+                <div className={combineStyles(
+                  getCardStyle('taskList', 'searchResult'),
+                  combineStyles(UI_COLORS.blueText600, CARD_STYLES.text.medium)
+                )}>
                   <div className="text-2xl mb-2">📋</div>
                   <p>释放以取消任务的标签关联</p>
                 </div>
               )}
               {filteredTasks.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-gray-400 text-4xl mb-4">
+                <div className={getCardStyle('taskList', 'empty')}>
+                  <div className={`${UI_COLORS.grayText400} text-4xl mb-4`}>
                     {searchQuery ? '🔍' : '📝'}
                   </div>
-                  <p className="text-gray-600">
+                  <p className={`${UI_COLORS.grayText600}`}>
                     {searchQuery ? `没有找到包含"${searchQuery}"的任务` : '暂无任务'}
                   </p>
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                      className={`${CARD_STYLES.spacing.marginTop2} ${UI_COLORS.blueText600} ${UI_COLORS.blueHoverText800} ${CARD_STYLES.text.small}`}
                     >
                       清除搜索条件
                     </button>
@@ -790,37 +834,43 @@ const TasksPage: React.FC = () => {
         </div>
 
         {/* 右侧：视图区域 */}
-        <div className="lg:col-span-2">
+        <div className={getCardStyle('grid', 'rightCol')}>
           {/* 视图切换按钮 */}
-          <div className="flex justify-between items-center mb-3">
-            <div className="bg-gray-50 rounded-xl p-1 flex shadow-sm border border-gray-200">
+          <div className={combineStyles(getCardStyle('flex', 'rowBetween'), CARD_STYLES.spacing.section)}>
+            <div className={combineStyles(
+              `${UI_COLORS.gray50} ${UI_COLORS.grayBorder200}`,
+              getCardStyle('viewToggle', 'container')
+            )}>
               <button
                 onClick={() => setViewMode('quadrant')}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                className={combineStyles(
+                  getCardStyle('viewToggle', 'button'),
                   viewMode === 'quadrant'
-                    ? 'bg-blue-600 text-white shadow-md transform scale-105'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
-                }`}
+                    ? UI_COLORS.viewModeActive
+                    : UI_COLORS.viewModeInactive
+                )}
               >
                 四象限展示
               </button>
               <button
                 onClick={() => setViewMode('kanban')}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                className={combineStyles(
+                  getCardStyle('viewToggle', 'button'),
                   viewMode === 'kanban'
-                    ? 'bg-blue-600 text-white shadow-md transform scale-105'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
-                }`}
+                    ? UI_COLORS.viewModeActive
+                    : UI_COLORS.viewModeInactive
+                )}
               >
                 看板展示
               </button>
               <button
                 onClick={() => setViewMode('personalized')}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                className={combineStyles(
+                  getCardStyle('viewToggle', 'button'),
                   viewMode === 'personalized'
-                    ? 'bg-blue-600 text-white shadow-md transform scale-105'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
-                }`}
+                    ? UI_COLORS.viewModeActive
+                    : UI_COLORS.viewModeInactive
+                )}
               >
                 个性化展示
               </button>
@@ -830,9 +880,14 @@ const TasksPage: React.FC = () => {
             {viewMode === 'personalized' && (
               <button
                 onClick={() => setShowLabelManager(true)}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center gap-2"
+                className={combineStyles(
+                  `${UI_COLORS.success.bg} ${CARD_STYLES.text.white} ${UI_COLORS.success.bgHover}`,
+                  getCardStyle('button'),
+                  getCardHover(true, true),
+                  getCardStyle('flex', 'rowCenter')
+                )}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={CARD_STYLES.size.small} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
                 管理标签
@@ -843,7 +898,7 @@ const TasksPage: React.FC = () => {
           {/* 条件渲染视图 */}
           {viewMode === 'quadrant' ? (
             // 艾森豪威尔矩阵
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className={getCardStyle('grid', 'view')}>
               <Quadrant
                 title="紧急且重要"
                 urgency={true}
@@ -929,7 +984,7 @@ const TasksPage: React.FC = () => {
         message={taskToDelete ? `确定要删除任务"${taskToDelete.title}"吗？此操作无法撤销。` : ''}
         confirmText="删除"
         cancelText="取消"
-        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+        confirmButtonClass={`${UI_COLORS.danger.bg} hover:${UI_COLORS.danger.bgHover} ${CARD_STYLES.text.white}`}
       />
 
       {/* 批量删除确认对话框 */}
@@ -941,7 +996,7 @@ const TasksPage: React.FC = () => {
         message={`确定要删除选中的 ${selectedTaskIds.length} 个任务吗？此操作无法撤销。`}
         confirmText="删除"
         cancelText="取消"
-        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+        confirmButtonClass={`${UI_COLORS.danger.bg} hover:${UI_COLORS.danger.bgHover} ${CARD_STYLES.text.white}`}
       />
 
       {/* 标签管理对话框 */}

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Task } from '../types';
 import TaskCard from './TaskCard';
+import { useDragHandlers } from '../hooks/useDragHandlers'; // 新增：拖拽钩子
+import { getTaskStatusColors } from '../utils/colorUtils'; // 新增：统一颜色配置
 
 interface KanbanColumnProps {
   title: string;
@@ -25,72 +27,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
   onDragStart,
   onCreateSubtask
 }) => {
-  const [isDragOver, setIsDragOver] = React.useState(false);
+  // 使用拖拽钩子简化逻辑
+  const { isDragOver, handleDragOver, handleDragLeave, handleDrop } = useDragHandlers();
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setIsDragOver(true);
+  // 处理任务拖拽放下
+  const handleTaskDrop = (task: any) => {
+    onDropTask(task, status);
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    // 只有真正离开列区域时才重置状态
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX;
-    const y = e.clientY;
-    
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-      setIsDragOver(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    if (!e.dataTransfer) {
-      return;
-    }
-    
-    const taskData = e.dataTransfer.getData('text/plain');
-    if (taskData) {
-      try {
-        const task = JSON.parse(taskData);
-        onDropTask(task, status);
-      } catch (error) {
-        console.error('解析拖拽数据失败:', error);
-      }
-    }
-  };
-
-  // 获取列的颜色类 - 与四象限风格保持一致
-  const getColumnColorClasses = () => {
-    switch (status) {
-      case 'pending':
-        return {
-          border: 'border-yellow-500',
-          text: 'text-yellow-600'
-        };
-      case 'in-progress':
-        return {
-          border: 'border-blue-500',
-          text: 'text-blue-600'
-        };
-      case 'completed':
-        return {
-          border: 'border-green-500',
-          text: 'text-green-600'
-        };
-      default:
-        return {
-          border: 'border-gray-500',
-          text: 'text-gray-600'
-        };
-    }
-  };
-
-  const colorClasses = getColumnColorClasses();
+  // 使用统一颜色配置系统
+  const colorClasses = getTaskStatusColors(status);
 
   return (
     <div
@@ -101,13 +47,13 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
       } ${colorClasses.border}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDrop={(e) => handleDrop(e, handleTaskDrop)}
     >
       <h2 className={`text-base font-semibold ${colorClasses.text} mb-3`}>
         {title} ({tasks.length})
       </h2>
       
-      <div className="space-y-2 min-h-[100px] max-h-[600px] overflow-y-auto">
+      <div className="space-y-2 min-h-[300px] max-h-[600px] overflow-y-auto">
         {tasks.length === 0 ? (
           <p className="text-gray-500 italic text-sm">此列中没有任务</p>
         ) : (

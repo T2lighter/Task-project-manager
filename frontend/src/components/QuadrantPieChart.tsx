@@ -72,7 +72,7 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantCl
 
   if (total === 0) {
     return (
-      <div className="bg-gradient-to-br from-white to-blue-50 p-5 rounded-xl shadow-lg border border-blue-100 h-80 flex flex-col transition-all duration-300 hover:shadow-xl">
+      <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-lg border border-gray-100 h-96 flex flex-col transition-all duration-300 hover:shadow-xl">
         <div className="flex items-center mb-4">
           <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
           <h3 className="text-lg font-bold text-gray-800">四象限分布</h3>
@@ -89,10 +89,10 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantCl
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 h-96 flex flex-col">
+    <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-lg border border-gray-100 h-96 flex flex-col transition-all duration-300 hover:shadow-xl">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-base font-semibold text-gray-800">四象限分布</h3>
-        <span className="text-sm text-gray-600">{total}</span>
+        <span className="text-sm text-gray-600">{total} 总任务</span>
       </div>
       
       <div className="flex-1 flex items-center">

@@ -69,7 +69,7 @@ const TaskDurationRanking: React.FC<TaskDurationRankingProps> = ({
 
   if (sortedData.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-96 flex flex-col">
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg border border-gray-100 p-4 h-96 flex flex-col transition-all duration-300 hover:shadow-xl">
         <h3 className="text-base font-semibold text-gray-800 mb-3">任务耗时排行</h3>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -82,10 +82,10 @@ const TaskDurationRanking: React.FC<TaskDurationRankingProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-96 flex flex-col">
+    <div className="bg-gradient-to-br from-white to-gray-50 rounded-lg shadow-lg border border-gray-100 p-4 h-96 flex flex-col transition-all duration-300 hover:shadow-xl">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-semibold text-gray-800">任务耗时排行</h3>
-        <div className="text-xs text-gray-500">
+        <div className="text-sm text-gray-600">
           {year}年 • 前{sortedData.length}名
         </div>
       </div>
@@ -96,13 +96,13 @@ const TaskDurationRanking: React.FC<TaskDurationRankingProps> = ({
           {sortedData.map((task, index) => (
             <div 
               key={task.taskId} 
-              className={`border rounded p-2 transition-all duration-200 hover:shadow-sm ${
+              className={`border rounded-lg p-3 transition-all duration-200 hover:shadow-md ${
                 onTaskClick ? 'cursor-pointer hover:bg-gray-50' : ''
               } ${
                 index === 0 ? 'border-yellow-200 bg-yellow-50' :
                 index === 1 ? 'border-gray-300 bg-gray-50' :
                 index === 2 ? 'border-orange-200 bg-orange-50' :
-                'border-gray-200 bg-white'
+                'border-gray-200 bg-white hover:border-gray-300'
               }`}
               onClick={() => onTaskClick?.(task.taskId)}
             >
@@ -110,7 +110,7 @@ const TaskDurationRanking: React.FC<TaskDurationRankingProps> = ({
                 {/* 左侧：排名和任务信息 */}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   {/* 排名徽章 */}
-                  <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${
                     index === 0 ? 'bg-yellow-500 text-white' :
                     index === 1 ? 'bg-gray-500 text-white' :
                     index === 2 ? 'bg-orange-500 text-white' :

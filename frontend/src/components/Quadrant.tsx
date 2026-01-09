@@ -1,6 +1,8 @@
 import React from 'react';
 import TaskCard from './TaskCard';
 import { Task } from '../types';
+import { useDragHandlers } from '../hooks/useDragHandlers';
+import { getQuadrantColors } from '../utils/colorUtils'; // 新增：统一颜色配置
 
 interface QuadrantProps {
   title: string;
@@ -22,71 +24,21 @@ const Quadrant: React.FC<QuadrantProps> = ({
   tasks,
   onEditTask,
   onDeleteTask,
-  onCopyTask, // 新增：复制任务回调
+  onCopyTask,
   onDropTask,
   onDragStart,
   onCreateSubtask
 }) => {
-  const [isDragOver, setIsDragOver] = React.useState(false);
+  // 使用拖拽钩子简化逻辑
+  const { isDragOver, handleDragOver, handleDragLeave, handleDrop } = useDragHandlers();
 
-  // 获取象限颜色类 - 使用完整的Tailwind类名
-  const getQuadrantColorClasses = () => {
-    if (urgency && importance) return {
-      border: 'border-red-500',
-      text: 'text-red-600'
-    };
-    if (!urgency && importance) return {
-      border: 'border-blue-500', 
-      text: 'text-blue-600'
-    };
-    if (urgency && !importance) return {
-      border: 'border-yellow-500',
-      text: 'text-yellow-600'
-    };
-    return {
-      border: 'border-gray-500',
-      text: 'text-gray-600'
-    };
-  };
+  // 使用统一颜色配置系统
+  const colorClasses = getQuadrantColors(urgency, importance);
 
-  const colorClasses = getQuadrantColorClasses();
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    // 只有真正离开象限区域时才重置状态
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX;
-    const y = e.clientY;
-    
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-      setIsDragOver(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    if (!e.dataTransfer) {
-      return;
-    }
-    
-    try {
-      const taskData = e.dataTransfer.getData('text/plain');
-      if (!taskData) {
-        return;
-      }
-      
-      const task = JSON.parse(taskData) as Task;
-      onDropTask?.(task, urgency, importance);
-    } catch (error) {
-      console.error('拖拽任务失败:', error);
+  // 处理任务拖拽放下
+  const handleTaskDrop = (task: any) => {
+    if (onDropTask) {
+      onDropTask(task, urgency, importance);
     }
   };
 
@@ -99,12 +51,12 @@ const Quadrant: React.FC<QuadrantProps> = ({
       } ${colorClasses.border}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDrop={(e) => handleDrop(e, handleTaskDrop)}
     >
       <h2 className={`text-base font-semibold ${colorClasses.text} mb-3`}>
         {title} ({tasks.length})
       </h2>
-      <div className="space-y-2 min-h-[80px] max-h-[267px] overflow-y-auto">
+      <div className="space-y-2 min-h-[80px] max-h-[317px] overflow-y-auto">
         {tasks.length === 0 ? (
           <p className="text-gray-500 italic">此象限中没有任务</p>
         ) : (

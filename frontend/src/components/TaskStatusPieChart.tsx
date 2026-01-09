@@ -62,8 +62,8 @@ const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatus
     <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-xl shadow-lg border border-gray-100 h-96 flex flex-col transition-all duration-300 hover:shadow-xl">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-base font-semibold text-gray-800">任务状态分布</h3>
-        <span className="text-sm text-gray-600">{stats.total}</span>
-      </div>
+        <span className="text-sm text-gray-600">{stats.total} 总任务</span>
+        </div>
       
       <div className="flex-1 flex items-center">
         <div className="flex-1 relative">

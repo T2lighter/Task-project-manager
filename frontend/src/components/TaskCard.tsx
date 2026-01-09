@@ -47,6 +47,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const [isDragging, setIsDragging] = React.useState(false);
   const [isSubtaskModalOpen, setIsSubtaskModalOpen] = React.useState(false); // 新增：子任务Modal状态
+  const [isSubtaskListExpanded, setIsSubtaskListExpanded] = React.useState(false); // 新增：子任务列表展开状态
 
   const handleDragStart = (e: React.DragEvent) => {
     // 确保事件对象存在
@@ -93,6 +94,13 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const completedSubtasks = subtasks.filter(st => st.status === 'completed').length;
   const totalSubtasks = subtasks.length;
 
+  // 移除HTML标签的函数
+  const stripHtmlTags = (html: string): string => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
   return (
     <div 
       className={`rounded-md shadow-sm border cursor-move hover:shadow-md drag-transition ${
@@ -137,9 +145,16 @@ const TaskCard: React.FC<TaskCardProps> = ({
           {task.title}
           {/* 子任务数量指示器 */}
           {totalSubtasks > 0 && (
-            <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsSubtaskListExpanded(!isSubtaskListExpanded);
+              }}
+              className="ml-2 text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full hover:bg-gray-300 transition-colors cursor-pointer"
+              title={isSubtaskListExpanded ? '隐藏子任务' : '显示子任务'}
+            >
               {completedSubtasks}/{totalSubtasks}
-            </span>
+            </button>
           )}
         </h3>
         {(onEdit || onDelete || onCopy || onCreateSubtask) && (
@@ -202,13 +217,21 @@ const TaskCard: React.FC<TaskCardProps> = ({
 
       {/* 第二行：任务描述 */}
       {task.description && !compact && (
-        <div 
-          className="text-xs text-gray-600 mt-0.5 prose prose-sm max-w-none
-                     [&_ul]:list-disc [&_ul]:ml-3 [&_ul]:my-0.5 
-                     [&_ol]:list-decimal [&_ol]:ml-3 [&_ol]:my-0.5
-                     [&_li]:my-0 [&_p]:my-0"
-          dangerouslySetInnerHTML={{ __html: task.description }}
-        />
+        <div className="mt-0.5 w-full">
+          <div 
+            className="text-xs text-gray-600 leading-4"
+            style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 1,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+            title={stripHtmlTags(task.description)} // 鼠标悬停显示完整内容
+          >
+            {stripHtmlTags(task.description)}
+          </div>
+          </div>
       )}
 
       {/* 第三行：标签 */}
@@ -293,7 +316,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
       </div>
 
       {/* 子任务列表 */}
-      {showSubtasks && totalSubtasks > 0 && (
+      {isSubtaskListExpanded && totalSubtasks > 0 && (
         <SubtaskList
           subtasks={subtasks}
           onEditSubtask={onEdit || (() => {})}

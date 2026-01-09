@@ -1,6 +1,8 @@
 import React from 'react';
 import { Task, CustomLabel } from '../types';
 import TaskCard from './TaskCard';
+import { useDragHandlers } from '../hooks/useDragHandlers';
+import { getLabelColorClasses } from '../utils/colorUtils'; // 新增：统一颜色配置
 
 interface PersonalizedViewProps {
   tasks: Task[];
@@ -23,7 +25,23 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
   onCreateSubtask,
   onDropTask
 }) => {
-  const [dragOverLabelId, setDragOverLabelId] = React.useState<number | null>(null);
+  // 为每个标签创建独立的拖拽状态管理
+  const createLabelDragHandlers = (labelId: number) => {
+    const { isDragOver, handleDragOver, handleDragLeave, handleDrop } = useDragHandlers();
+    
+    const handleLabelDrop = (task: any) => {
+      if (onDropTask) {
+        onDropTask(task, labelId);
+      }
+    };
+    
+    return {
+      isDragOver,
+      handleDragOver,
+      handleDragLeave,
+      handleDrop: (e: React.DragEvent) => handleDrop(e, handleLabelDrop)
+    };
+  };
   
   // 监控任务数据变化
   React.useEffect(() => {
@@ -45,77 +63,7 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
     );
   };
 
-  // 获取标签颜色类 - 与四象限和看板风格保持一致
-  const getLabelColorClasses = (color: string) => {
-    // 将标签颜色转换为对应的Tailwind类
-    const colorMap: { [key: string]: { border: string; text: string } } = {
-      '#EF4444': { border: 'border-red-500', text: 'text-red-600' },
-      '#F97316': { border: 'border-orange-500', text: 'text-orange-600' },
-      '#F59E0B': { border: 'border-amber-500', text: 'text-amber-600' },
-      '#EAB308': { border: 'border-yellow-500', text: 'text-yellow-600' },
-      '#84CC16': { border: 'border-lime-500', text: 'text-lime-600' },
-      '#22C55E': { border: 'border-green-500', text: 'text-green-600' },
-      '#10B981': { border: 'border-emerald-500', text: 'text-emerald-600' },
-      '#14B8A6': { border: 'border-teal-500', text: 'text-teal-600' },
-      '#06B6D4': { border: 'border-cyan-500', text: 'text-cyan-600' },
-      '#0EA5E9': { border: 'border-sky-500', text: 'text-sky-600' },
-      '#3B82F6': { border: 'border-blue-500', text: 'text-blue-600' },
-      '#6366F1': { border: 'border-indigo-500', text: 'text-indigo-600' },
-      '#8B5CF6': { border: 'border-violet-500', text: 'text-violet-600' },
-      '#A855F7': { border: 'border-purple-500', text: 'text-purple-600' },
-      '#D946EF': { border: 'border-fuchsia-500', text: 'text-fuchsia-600' },
-      '#EC4899': { border: 'border-pink-500', text: 'text-pink-600' },
-      '#F43F5E': { border: 'border-rose-500', text: 'text-rose-600' },
-      '#6B7280': { border: 'border-gray-500', text: 'text-gray-600' },
-      '#374151': { border: 'border-gray-700', text: 'text-gray-700' },
-      '#1F2937': { border: 'border-gray-800', text: 'text-gray-800' }
-    };
-    
-    return colorMap[color] || { border: 'border-gray-500', text: 'text-gray-600' };
-  };
-
-  // 拖拽事件处理函数
-  const handleDragOver = (e: React.DragEvent, labelId: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverLabelId(labelId);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    // 只有真正离开标签区域时才重置状态
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX;
-    const y = e.clientY;
-    
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-      setDragOverLabelId(null);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, labelId: number) => {
-    e.preventDefault();
-    setDragOverLabelId(null);
-    
-    if (!e.dataTransfer) {
-      return;
-    }
-    
-    try {
-      const taskData = e.dataTransfer.getData('text/plain');
-      if (!taskData) {
-        return;
-      }
-      
-      const task = JSON.parse(taskData) as Task;
-      
-      if (onDropTask) {
-        onDropTask(task, labelId);
-      }
-    } catch (error) {
-      console.error('拖拽任务到标签失败:', error);
-    }
-  };
+  // 使用统一颜色配置系统 - 已移除重复的颜色映射代码
 
   if (labels.length === 0) {
     return (
@@ -141,17 +89,20 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
         const labelTasks = getTasksByLabel(label.id);
         const colorClasses = getLabelColorClasses(label.color);
         
+        // 为当前标签创建拖拽处理函数
+        const labelDragHandlers = createLabelDragHandlers(label.id);
+        
         return (
           <div 
             key={label.id} 
             className={`rounded-lg shadow p-3 border-l-4 min-h-24 bg-white hover:bg-gray-50 drag-transition ${
-              dragOverLabelId === label.id 
+              labelDragHandlers.isDragOver 
                 ? 'bg-blue-50' 
                 : ''
             } ${colorClasses.border}`}
-            onDragOver={(e) => handleDragOver(e, label.id)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, label.id)}
+            onDragOver={labelDragHandlers.handleDragOver}
+            onDragLeave={labelDragHandlers.handleDragLeave}
+            onDrop={labelDragHandlers.handleDrop}
           >
             {/* 标签头部 */}
             <h2 className={`text-base font-semibold ${colorClasses.text} mb-3 flex items-center gap-2`}>
