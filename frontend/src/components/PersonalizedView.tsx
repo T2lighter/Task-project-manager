@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Task, CustomLabel } from '../types';
 import TaskCard from './TaskCard';
-import { useDragHandlers } from '../hooks/useDragHandlers';
 import { getLabelColorClasses } from '../utils/colorUtils'; // 新增：统一颜色配置
 
 interface PersonalizedViewProps {
@@ -25,23 +24,51 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
   onCreateSubtask,
   onDropTask
 }) => {
-  // 为每个标签创建独立的拖拽状态管理
-  const createLabelDragHandlers = (labelId: number) => {
-    const { isDragOver, handleDragOver, handleDragLeave, handleDrop } = useDragHandlers();
+  // 使用单一状态管理所有标签的拖拽悬停状态
+  const [dragOverLabelId, setDragOverLabelId] = useState<number | null>(null);
+
+  // 拖拽处理函数
+  const handleDragOver = useCallback((e: React.DragEvent, labelId: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverLabelId(labelId);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    // 只有真正离开标签区域时才重置状态
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
     
-    const handleLabelDrop = (task: any) => {
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDragOverLabelId(null);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, labelId: number) => {
+    e.preventDefault();
+    setDragOverLabelId(null);
+    
+    if (!e.dataTransfer) {
+      return;
+    }
+    
+    try {
+      const taskData = e.dataTransfer.getData('text/plain');
+      if (!taskData) {
+        return;
+      }
+      
+      const task = JSON.parse(taskData) as Task;
+      
       if (onDropTask) {
         onDropTask(task, labelId);
       }
-    };
-    
-    return {
-      isDragOver,
-      handleDragOver,
-      handleDragLeave,
-      handleDrop: (e: React.DragEvent) => handleDrop(e, handleLabelDrop)
-    };
-  };
+    } catch (error) {
+      console.error('拖拽任务到标签失败:', error);
+    }
+  }, [onDropTask]);
   
   // 监控任务数据变化
   React.useEffect(() => {
@@ -49,19 +76,20 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
   }, [tasks]);
   
   // 自定义拖拽开始处理函数，包含标签信息
-  const handleDragStartFromLabel = (task: Task, labelId: number) => {
+  const handleDragStartFromLabel = useCallback((task: Task, labelId: number) => {
     // 调用原始的拖拽开始函数
     onDragStart(task);
     
     // 将标签信息存储到sessionStorage，以便在拖拽结束时使用
     sessionStorage.setItem('dragFromLabel', JSON.stringify({ taskId: task.id, labelId }));
-  };
+  }, [onDragStart]);
+
   // 按标签分组任务
-  const getTasksByLabel = (labelId: number) => {
+  const getTasksByLabel = useCallback((labelId: number) => {
     return tasks.filter(task => 
       task.labels?.some(taskLabel => taskLabel.labelId === labelId)
     );
-  };
+  }, [tasks]);
 
   // 使用统一颜色配置系统 - 已移除重复的颜色映射代码
 
@@ -88,21 +116,17 @@ const PersonalizedView: React.FC<PersonalizedViewProps> = ({
       {labels.map((label) => {
         const labelTasks = getTasksByLabel(label.id);
         const colorClasses = getLabelColorClasses(label.color);
-        
-        // 为当前标签创建拖拽处理函数
-        const labelDragHandlers = createLabelDragHandlers(label.id);
+        const isDragOver = dragOverLabelId === label.id;
         
         return (
           <div 
             key={label.id} 
             className={`rounded-lg shadow p-3 border-l-4 min-h-24 bg-white hover:bg-gray-50 drag-transition ${
-              labelDragHandlers.isDragOver 
-                ? 'bg-blue-50' 
-                : ''
+              isDragOver ? 'bg-blue-50' : ''
             } ${colorClasses.border}`}
-            onDragOver={labelDragHandlers.handleDragOver}
-            onDragLeave={labelDragHandlers.handleDragLeave}
-            onDrop={labelDragHandlers.handleDrop}
+            onDragOver={(e) => handleDragOver(e, label.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, label.id)}
           >
             {/* 标签头部 */}
             <h2 className={`text-base font-semibold ${colorClasses.text} mb-3 flex items-center gap-2`}>
