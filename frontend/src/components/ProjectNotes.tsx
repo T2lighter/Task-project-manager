@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
-import MDEditor from '@uiw/react-md-editor';
+import MDEditor, { commands, ICommand } from '@uiw/react-md-editor';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 import { Project, ProjectNote } from '../types';
@@ -10,6 +10,7 @@ import {
   updateProjectNote, 
   deleteProjectNote 
 } from '../services/projectNoteService';
+import { uploadImage, compressImage } from '../services/uploadService';
 import { format } from 'date-fns';
 import ConfirmDialog from './ConfirmDialog';
 import AlertDialog from './AlertDialog';
@@ -31,6 +32,9 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
     content: '',
     type: 'note' as ProjectNote['type']
   });
+  
+  // 上传状态
+  const [isUploading, setIsUploading] = useState(false);
   
   // 删除确认对话框状态
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -79,13 +83,117 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
   };
 
   // 显示提示信息
-  const showAlertMessage = (title: string, message: string, type: 'info' | 'warning' | 'error' | 'success' = 'info') => {
+  const showAlertMessage = useCallback((title: string, message: string, type: 'info' | 'warning' | 'error' | 'success' = 'info') => {
     setAlertConfig({ title, message, type });
     setShowAlert(true);
+  }, []);
+
+  // 处理图片粘贴上传
+  const handleImagePaste = useCallback(async (
+    event: React.ClipboardEvent,
+    setContent: (content: string) => void,
+    currentContent: string
+  ) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      if (item.type.startsWith('image/')) {
+        event.preventDefault();
+        
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        try {
+          setIsUploading(true);
+          
+          const processedFile = await compressImage(file, 500);
+          const result = await uploadImage(processedFile);
+          const imageMarkdown = `\n![image](${result.url})\n`;
+          setContent(currentContent + imageMarkdown);
+        } catch (error) {
+          console.error('图片上传失败:', error);
+          showAlertMessage('上传失败', '图片上传失败，请重试', 'error');
+        } finally {
+          setIsUploading(false);
+        }
+        
+        break;
+      }
+    }
+  }, [showAlertMessage]);
+
+  // 处理新建记录的粘贴事件
+  const handleNewNotePaste = useCallback((event: React.ClipboardEvent) => {
+    handleImagePaste(event, (content) => {
+      setNewNote(prev => ({ ...prev, content }));
+    }, newNote.content);
+  }, [handleImagePaste, newNote.content]);
+
+  // 处理编辑记录的粘贴事件
+  const handleEditNotePaste = useCallback((event: React.ClipboardEvent) => {
+    if (!editingNote) return;
+    handleImagePaste(event, (content) => {
+      setEditingNote(prev => prev ? { ...prev, content } : null);
+    }, editingNote.content);
+  }, [handleImagePaste, editingNote]);
+
+  // 自定义图片上传命令（工具栏按钮）
+  const imageUploadCommand: ICommand = {
+    name: 'image-upload',
+    keyCommand: 'image-upload',
+    buttonProps: { 'aria-label': '上传图片', title: '上传图片 (也可以直接 Ctrl+V 粘贴)' },
+    icon: (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+      </svg>
+    ),
+    execute: (_state, api) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (!file) return;
+
+        try {
+          setIsUploading(true);
+          const processedFile = await compressImage(file, 500);
+          const result = await uploadImage(processedFile);
+          const imageMarkdown = `![image](${result.url})`;
+          api.replaceSelection(imageMarkdown);
+        } catch (error) {
+          console.error('图片上传失败:', error);
+          showAlertMessage('上传失败', '图片上传失败，请重试', 'error');
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      input.click();
+    },
   };
 
+  // 编辑器工具栏命令配置
+  const editorCommands = [
+    commands.bold,
+    commands.italic,
+    commands.strikethrough,
+    commands.hr,
+    commands.divider,
+    commands.link,
+    imageUploadCommand,
+    commands.divider,
+    commands.unorderedListCommand,
+    commands.orderedListCommand,
+    commands.checkedListCommand,
+    commands.divider,
+    commands.code,
+    commands.codeBlock,
+  ];
+
   const handleCreateNote = async () => {
-    // 验证输入
     if (!newNote.title.trim()) {
       showAlertMessage('标题不能为空', '请输入记录标题后再保存。', 'warning');
       return;
@@ -103,7 +211,6 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
       setIsCreating(false);
       onNotesChange?.();
       
-      // 显示成功提示
       showAlertMessage('创建成功', `记录"${createdNote.title}"已成功创建。`, 'success');
     } catch (error) {
       console.error('创建项目记录失败:', error);
@@ -137,7 +244,6 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
       setNoteToDelete(null);
       onNotesChange?.();
       
-      // 显示成功提示
       showAlertMessage('删除成功', `记录"${noteToDelete.title}"已成功删除。`, 'success');
     } catch (error) {
       console.error('删除项目记录失败:', error);
@@ -171,10 +277,8 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
     for (const line of lines) {
       const trimmed = line.trim();
       if (trimmed.startsWith('#')) {
-        // 提取标题文本，移除#号和多余空格
         const headingText = trimmed.replace(/^#+\s*/, '').trim();
         if (headingText) {
-          // 根据#号数量确定层级
           const level = trimmed.match(/^#+/)?.[0].length || 1;
           const indent = '  '.repeat(Math.max(0, level - 1));
           headings.push(`${indent}• ${headingText}`);
@@ -182,7 +286,7 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
       }
     }
     
-    return headings.slice(0, 5); // 最多显示5个标题
+    return headings.slice(0, 5);
   };
 
   // 处理记录类型更改
@@ -212,13 +316,11 @@ const ProjectNotes: React.FC<ProjectNotesProps> = ({ project, onNotesChange }) =
       return '<p class="text-gray-500 italic">暂无内容</p>';
     }
     try {
-      // 使用同步API
       const html = marked(content, {
         breaks: true,
         gfm: true,
       });
       
-      // 处理可能的Promise返回值
       if (typeof html === 'string') {
         return html;
       } else {
@@ -409,7 +511,10 @@ ${format(new Date(), 'yyyy-MM-dd')}
       {isCreating && (
         <div className="mb-3 p-3 border border-blue-200 rounded-lg bg-blue-50">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-gray-800">创建新记录</h3>
+            <h3 className="text-sm font-medium text-gray-800">
+              创建新记录
+              {isUploading && <span className="ml-2 text-blue-600 text-xs animate-pulse">📤 上传中...</span>}
+            </h3>
             <button
               onClick={() => {
                 setIsCreating(false);
@@ -452,16 +557,22 @@ ${format(new Date(), 'yyyy-MM-dd')}
               </select>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               <button
                 onClick={() => setNewNote({ ...newNote, content: getTemplate(newNote.type) })}
                 className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200 transition-colors"
               >
                 📋 使用模板
               </button>
+              <span className="text-xs text-gray-500">
+                💡 可直接 Ctrl+V 粘贴图片
+              </span>
             </div>
             
-            <div className="markdown-editor-container">
+            <div 
+              className="markdown-editor-container"
+              onPaste={handleNewNotePaste}
+            >
               <MDEditor
                 value={newNote.content}
                 onChange={(val) => setNewNote({ ...newNote, content: val || '' })}
@@ -470,13 +581,15 @@ ${format(new Date(), 'yyyy-MM-dd')}
                 height={200}
                 data-color-mode="light"
                 visibleDragbar={false}
+                commands={editorCommands}
               />
             </div>
             
             <div className="flex gap-2">
               <button
                 onClick={handleCreateNote}
-                className="bg-green-600 text-white px-2 py-1 rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1"
+                disabled={isUploading}
+                className="bg-green-600 text-white px-2 py-1 rounded-md text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1 disabled:opacity-50"
               >
                 <span>💾</span>
                 保存
@@ -679,7 +792,13 @@ ${format(new Date(), 'yyyy-MM-dd')}
                   <div className="px-3 pb-3 border-t border-gray-100">
                     {isEditing ? (
                       <div className="mt-3">
-                        <div className="markdown-editor-container">
+                        {isUploading && (
+                          <div className="mb-2 text-xs text-blue-600 animate-pulse">📤 图片上传中...</div>
+                        )}
+                        <div 
+                          className="markdown-editor-container"
+                          onPaste={handleEditNotePaste}
+                        >
                           <MDEditor
                             value={editingNote.content}
                             onChange={(val) => setEditingNote({ ...editingNote, content: val || '' })}
@@ -688,6 +807,7 @@ ${format(new Date(), 'yyyy-MM-dd')}
                             height={300}
                             data-color-mode="light"
                             visibleDragbar={false}
+                            commands={editorCommands}
                           />
                         </div>
                       </div>
@@ -714,7 +834,12 @@ ${format(new Date(), 'yyyy-MM-dd')}
         onConfirm={handleConfirmDeleteNote}
         title="删除项目记录"
         message={noteToDelete ? 
-          `确定要删除记录"${noteToDelete.title}"吗？\n\n记录类型：${getTypeConfig(noteToDelete.type).label}\n创建时间：${format(new Date(noteToDelete.createdAt), 'yyyy-MM-dd HH:mm')}\n\n此操作无法撤销，记录内容将永久丢失。` : 
+          `确定要删除记录"${noteToDelete.title}"吗？
+
+记录类型：${getTypeConfig(noteToDelete.type).label}
+创建时间：${format(new Date(noteToDelete.createdAt), 'yyyy-MM-dd HH:mm')}
+
+此操作无法撤销，记录内容将永久丢失。` : 
           ''
         }
         confirmText="🗑️ 删除记录"

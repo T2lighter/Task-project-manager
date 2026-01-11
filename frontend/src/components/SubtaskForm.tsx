@@ -84,24 +84,24 @@ const SubtaskForm: React.FC<SubtaskFormProps> = ({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label htmlFor="subtask-status" className="block text-xs font-medium text-gray-700 mb-1">
-            状态
-          </label>
-          <select
-            id="subtask-status"
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="pending">待办</option>
-            <option value="in-progress">进行中</option>
-            <option value="completed">已完成</option>
-          </select>
-        </div>
+      <div>
+        <label htmlFor="subtask-status" className="block text-xs font-medium text-gray-700 mb-1">
+          状态
+        </label>
+        <select
+          id="subtask-status"
+          name="status"
+          value={formData.status}
+          onChange={handleChange}
+          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="pending">待办</option>
+          <option value="in-progress">进行中</option>
+          <option value="completed">已完成</option>
+        </select>
+      </div>
 
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <label htmlFor="subtask-dueDate" className="block text-xs font-medium text-gray-700 mb-1">
             截止日期
@@ -115,34 +115,39 @@ const SubtaskForm: React.FC<SubtaskFormProps> = ({
             className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-      </div>
 
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="subtask-urgency"
-            name="urgency"
-            checked={formData.urgency}
-            onChange={handleChange}
-            className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label htmlFor="subtask-urgency" className="ml-1 block text-xs text-gray-700">
-            紧急
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            优先级
           </label>
-        </div>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="subtask-importance"
-            name="importance"
-            checked={formData.importance}
-            onChange={handleChange}
-            className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label htmlFor="subtask-importance" className="ml-1 block text-xs text-gray-700">
-            重要
-          </label>
+          <div className="flex items-center space-x-4 bg-gray-100 rounded-lg px-3 py-1">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="subtask-urgency"
+                name="urgency"
+                checked={formData.urgency}
+                onChange={handleChange}
+                className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="subtask-urgency" className="ml-1 block text-xs text-gray-700">
+                紧急
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="subtask-importance"
+                name="importance"
+                checked={formData.importance}
+                onChange={handleChange}
+                className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="subtask-importance" className="ml-1 block text-xs text-gray-700">
+                重要
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 

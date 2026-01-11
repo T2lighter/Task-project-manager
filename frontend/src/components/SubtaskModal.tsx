@@ -156,10 +156,9 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">请选择来源</option>
               {TASK_SOURCE_OPTIONS.map(option => (
                 <option key={option.value} value={option.value}>
-                  {option.icon} {option.label}
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -180,38 +179,38 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            优先级（继承自父任务）
-          </label>
-          <div className="flex space-x-6">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="subtask-urgency"
-                name="urgency"
-                checked={formData.urgency}
-                onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="subtask-urgency" className="ml-2 block text-sm text-gray-700">
-                紧急
-              </label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="subtask-importance"
-                name="importance"
-                checked={formData.importance}
-                onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="subtask-importance" className="ml-2 block text-sm text-gray-700">
-                重要
-              </label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              优先级
+            </label>
+            <div className="flex items-center space-x-6 bg-gray-100 rounded-lg px-3 py-2">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="subtask-urgency"
+                  name="urgency"
+                  checked={formData.urgency}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="subtask-urgency" className="ml-2 block text-sm text-gray-700">
+                  紧急
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="subtask-importance"
+                  name="importance"
+                  checked={formData.importance}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="subtask-importance" className="ml-2 block text-sm text-gray-700">
+                  重要
+                </label>
+              </div>
             </div>
           </div>
         </div>

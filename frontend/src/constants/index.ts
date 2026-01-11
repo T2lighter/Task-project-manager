@@ -28,9 +28,9 @@ export const TASK_SOURCE_NAMES: Record<string, string> = {
 
 // 任务来源选项列表（用于下拉选择）
 export const TASK_SOURCE_OPTIONS = [
-  { value: TASK_SOURCE.VERBAL, label: '口头说明', icon: '🗣️' },
-  { value: TASK_SOURCE.EMAIL, label: '邮件收取', icon: '📧' },
-  { value: TASK_SOURCE.IM, label: '通讯软件', icon: '💬' }
+  { value: TASK_SOURCE.VERBAL, label: '口头说明' },
+  { value: TASK_SOURCE.EMAIL, label: '邮件收取' },
+  { value: TASK_SOURCE.IM, label: '通讯软件' }
 ] as const;
 
 // 象限名称

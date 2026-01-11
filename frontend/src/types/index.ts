@@ -186,6 +186,9 @@ export interface TimeSeriesData {
   date: string;
   completed: number;
   created: number;
+  // 子任务统计
+  subtaskCompleted?: number;
+  subtaskCreated?: number;
 }
 
 export interface CategoryStats {

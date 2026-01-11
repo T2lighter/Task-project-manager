@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   isOpen: boolean;
@@ -45,8 +46,19 @@ const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-4xl'
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  // 阻止拖拽事件冒泡
+  const handleDragStart = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto"
+      onDragStart={handleDragStart}
+      onDrag={handleDragStart}
+      onDragOver={handleDragStart}
+    >
       {/* 背景遮罩 */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
@@ -58,6 +70,7 @@ const Modal: React.FC<ModalProps> = ({
         <div 
           className={`relative bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} transform transition-all`}
           onClick={(e) => e.stopPropagation()}
+          style={{ userSelect: 'text' }}
         >
           {/* 头部 */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -82,6 +95,9 @@ const Modal: React.FC<ModalProps> = ({
       </div>
     </div>
   );
+
+  // 使用 Portal 将 Modal 渲染到 body 外部，避免受父组件拖拽属性影响
+  return createPortal(modalContent, document.body);
 };
 
 export default Modal;

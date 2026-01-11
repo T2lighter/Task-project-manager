@@ -67,6 +67,9 @@ export interface TimeSeriesData {
   date: string;
   completed: number;
   created: number;
+  // 子任务统计
+  subtaskCompleted?: number;
+  subtaskCreated?: number;
 }
 
 export interface CategoryStats {
@@ -271,43 +274,41 @@ export const getYearHeatmapData = async (
   try {
     console.log(`获取用户 ${userId} 的 ${year} 年度热力图数据`);
     
-    // 直接获取用户的所有主任务，避免复杂的SQL日期函数
+    // 获取用户的所有任务（包括主任务和子任务）
     const allTasks = await prisma.task.findMany({
       where: { 
-        userId,
-        parentTaskId: null // 只获取主任务
+        userId
       },
       select: {
         createdAt: true,
         updatedAt: true,
-        status: true
+        status: true,
+        parentTaskId: true
       }
     });
     
-    console.log(`获取到用户 ${userId} 的 ${allTasks.length} 个任务`);
+    // 分离主任务和子任务
+    const mainTasks = allTasks.filter(task => !task.parentTaskId);
+    const subtasks = allTasks.filter(task => task.parentTaskId);
     
-    if (allTasks.length > 0) {
-      console.log('任务样本:', allTasks.slice(0, 3).map(t => ({
-        status: t.status,
-        createdAt: t.createdAt.toISOString(),
-        updatedAt: t.updatedAt.toISOString()
-      })));
-    }
+    console.log(`获取到用户 ${userId} 的 ${mainTasks.length} 个主任务和 ${subtasks.length} 个子任务`);
     
-    // 创建高效的Map索引
+    // 创建高效的Map索引 - 主任务
     const createdMap = new Map<string, number>();
     const completedMap = new Map<string, number>();
     
-    // 在应用层进行日期过滤和聚合
-    allTasks.forEach(task => {
-      // 处理创建任务统计
+    // 创建高效的Map索引 - 子任务
+    const subtaskCreatedMap = new Map<string, number>();
+    const subtaskCompletedMap = new Map<string, number>();
+    
+    // 处理主任务统计
+    mainTasks.forEach(task => {
       const createdYear = task.createdAt.getFullYear();
       if (createdYear === year) {
         const createdDate = format(task.createdAt, 'yyyy-MM-dd');
         createdMap.set(createdDate, (createdMap.get(createdDate) || 0) + 1);
       }
       
-      // 处理完成任务统计
       if (task.status === 'completed') {
         const completedYear = task.updatedAt.getFullYear();
         if (completedYear === year) {
@@ -317,17 +318,25 @@ export const getYearHeatmapData = async (
       }
     });
     
-    console.log(`${year} 年统计 - 创建任务: ${createdMap.size} 天有数据, 完成任务: ${completedMap.size} 天有数据`);
+    // 处理子任务统计
+    subtasks.forEach(task => {
+      const createdYear = task.createdAt.getFullYear();
+      if (createdYear === year) {
+        const createdDate = format(task.createdAt, 'yyyy-MM-dd');
+        subtaskCreatedMap.set(createdDate, (subtaskCreatedMap.get(createdDate) || 0) + 1);
+      }
+      
+      if (task.status === 'completed') {
+        const completedYear = task.updatedAt.getFullYear();
+        if (completedYear === year) {
+          const completedDate = format(task.updatedAt, 'yyyy-MM-dd');
+          subtaskCompletedMap.set(completedDate, (subtaskCompletedMap.get(completedDate) || 0) + 1);
+        }
+      }
+    });
     
-    // 显示有数据的日期样本
-    if (createdMap.size > 0) {
-      const createdDates = Array.from(createdMap.entries()).slice(0, 3);
-      console.log('创建任务日期样本:', createdDates);
-    }
-    if (completedMap.size > 0) {
-      const completedDates = Array.from(completedMap.entries()).slice(0, 3);
-      console.log('完成任务日期样本:', completedDates);
-    }
+    console.log(`${year} 年统计 - 主任务创建: ${createdMap.size} 天, 完成: ${completedMap.size} 天`);
+    console.log(`${year} 年统计 - 子任务创建: ${subtaskCreatedMap.size} 天, 完成: ${subtaskCompletedMap.size} 天`);
     
     // 生成年度所有日期（365/366天）
     const yearStart = new Date(year, 0, 1);
@@ -340,16 +349,25 @@ export const getYearHeatmapData = async (
       return {
         date: dateStr,
         created: createdMap.get(dateStr) || 0,
-        completed: completedMap.get(dateStr) || 0
+        completed: completedMap.get(dateStr) || 0,
+        subtaskCreated: subtaskCreatedMap.get(dateStr) || 0,
+        subtaskCompleted: subtaskCompletedMap.get(dateStr) || 0
       };
     });
     
     // 统计信息
     const totalCreated = Array.from(createdMap.values()).reduce((sum, count) => sum + count, 0);
     const totalCompleted = Array.from(completedMap.values()).reduce((sum, count) => sum + count, 0);
-    const activeDays = result.filter(item => item.created > 0 || item.completed > 0).length;
+    const totalSubtaskCreated = Array.from(subtaskCreatedMap.values()).reduce((sum, count) => sum + count, 0);
+    const totalSubtaskCompleted = Array.from(subtaskCompletedMap.values()).reduce((sum, count) => sum + count, 0);
+    const activeDays = result.filter(item => 
+      item.created > 0 || item.completed > 0 || 
+      (item.subtaskCreated || 0) > 0 || (item.subtaskCompleted || 0) > 0
+    ).length;
     
-    console.log(`年度统计 - 总创建: ${totalCreated}, 总完成: ${totalCompleted}, 活跃天数: ${activeDays}/${result.length}`);
+    console.log(`年度统计 - 主任务创建: ${totalCreated}, 完成: ${totalCompleted}`);
+    console.log(`年度统计 - 子任务创建: ${totalSubtaskCreated}, 完成: ${totalSubtaskCompleted}`);
+    console.log(`年度统计 - 活跃天数: ${activeDays}/${result.length}`);
     
     return result;
     

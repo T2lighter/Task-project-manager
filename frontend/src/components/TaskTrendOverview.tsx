@@ -82,9 +82,17 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
 
   const selectedPeriodData = getSelectedPeriodData();
   
-  // 计算选定时间范围内的总计数据
+  // 计算选定时间范围内的总计数据（任务）
   const totalCreated = selectedPeriodData.reduce((sum, item) => sum + item.created, 0);
   const totalCompleted = selectedPeriodData.reduce((sum, item) => sum + item.completed, 0);
+  
+  // 计算选定时间范围内的总计数据（子任务）
+  const totalSubtaskCreated = selectedPeriodData.reduce((sum, item) => sum + (item.subtaskCreated || 0), 0);
+  const totalSubtaskCompleted = selectedPeriodData.reduce((sum, item) => sum + (item.subtaskCompleted || 0), 0);
+  
+  // 计算总活动数
+  const totalAllCreated = totalCreated + totalSubtaskCreated;
+  const totalAllCompleted = totalCompleted + totalSubtaskCompleted;
 
   const periods = [
     { value: 'day' as const, label: '当天', description: '高亮显示选定日期' },
@@ -93,13 +101,17 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
   ];
 
   const getPeriodDescription = () => {
-    // 计算完成率
-    const completionRate = totalCreated > 0 ? ((totalCompleted / totalCreated) * 100).toFixed(1) : '0.0';
+    // 计算活跃天数（有任务活动的天数，包括子任务）
+    const activeDays = selectedPeriodData.filter(item => 
+      item.created > 0 || item.completed > 0 || 
+      (item.subtaskCreated || 0) > 0 || (item.subtaskCompleted || 0) > 0
+    ).length;
     
-    // 计算活跃天数（有任务活动的天数）
-    const activeDays = selectedPeriodData.filter(item => item.created > 0 || item.completed > 0).length;
-    
-    const baseStats = `创建: ${totalCreated}个, 完成: ${totalCompleted}个, 完成率: ${completionRate}%, 活跃天数: ${activeDays}`;
+    // 构建统计信息
+    const taskStats = `创建: ${totalCreated}个任务, ${totalSubtaskCreated}个子任务`;
+    const completedStats = `完成: ${totalCompleted}个任务, ${totalSubtaskCompleted}个子任务`;
+    const totalStats = `总活动: ${totalAllCreated}个创建, ${totalAllCompleted}个完成`;
+    const baseStats = `${taskStats} | ${completedStats} | ${totalStats} | 活跃天数: ${activeDays}`;
     
     switch (period) {
       case 'day':
@@ -115,9 +127,9 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
     }
   };
 
-  // 获取活动强度（基于创建和完成任务的总和）
-  const getActivityIntensity = (created: number, completed: number, maxTotal: number) => {
-    const total = created + completed;
+  // 获取活动强度（基于创建和完成任务的总和，包括子任务）
+  const getActivityIntensity = (created: number, completed: number, subtaskCreated: number, subtaskCompleted: number, maxTotal: number) => {
+    const total = created + completed + subtaskCreated + subtaskCompleted;
     if (maxTotal === 0 || total === 0) return 0;
     const ratio = total / maxTotal;
     if (ratio <= 0.2) return 1;
@@ -185,11 +197,13 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
         const itemDate = parseISO(item.date);
         const dateKey = format(itemDate, 'yyyy-MM-dd');
         if (!dataMap.has(dateKey)) {
-          dataMap.set(dateKey, { created: 0, completed: 0 });
+          dataMap.set(dateKey, { created: 0, completed: 0, subtaskCreated: 0, subtaskCompleted: 0 });
         }
         const existing = dataMap.get(dateKey);
         existing.created += item.created;
         existing.completed += item.completed;
+        existing.subtaskCreated += item.subtaskCreated || 0;
+        existing.subtaskCompleted += item.subtaskCompleted || 0;
       } catch (error) {
         console.warn('Invalid date in data:', item.date);
       }
@@ -197,13 +211,15 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
 
     return allDays.map(date => {
       const dateKey = format(date, 'yyyy-MM-dd');
-      const dayData = dataMap.get(dateKey) || { created: 0, completed: 0 };
+      const dayData = dataMap.get(dateKey) || { created: 0, completed: 0, subtaskCreated: 0, subtaskCompleted: 0 };
       const currentYear = selectedDate.getFullYear();
 
       return {
         date,
         created: dayData.created,
         completed: dayData.completed,
+        subtaskCreated: dayData.subtaskCreated || 0,
+        subtaskCompleted: dayData.subtaskCompleted || 0,
         dateString: dateKey,
         isCurrentYear: date.getFullYear() === currentYear,
         isInRange: true // 所有显示的日期都在范围内
@@ -212,7 +228,7 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
   };
 
   const gridData = generateGridData();
-  const maxTotal = Math.max(...gridData.map(d => d.created + d.completed));
+  const maxTotal = Math.max(...gridData.map(d => d.created + d.completed + d.subtaskCreated + d.subtaskCompleted));
 
   // 按周分组数据
   const weekGroups = [];
@@ -511,9 +527,10 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
                 {weekGroups.map((week, weekIndex) => (
                   <div key={weekIndex} className="flex-1 flex flex-col gap-0.5">
                     {week.map((day, dayIndex) => {
-                      const intensity = getActivityIntensity(day.created, day.completed, maxTotal);
+                      const intensity = getActivityIntensity(day.created, day.completed, day.subtaskCreated, day.subtaskCompleted, maxTotal);
                       const isHighlighted = shouldHighlight(day.date);
                       const isHovered = hoveredCell === day.dateString;
+                      const totalActivity = day.created + day.completed + day.subtaskCreated + day.subtaskCompleted;
                       
                       return (
                         <div
@@ -531,7 +548,7 @@ const TaskTrendOverview: React.FC<TaskTrendOverviewProps> = ({
                           } ${
                             !day.isInRange ? 'opacity-15' : ''
                           }`}
-                          title={`${format(day.date, 'yyyy年MM月dd日', { locale: zhCN })}\n创建: ${day.created}个任务\n完成: ${day.completed}个任务\n总活动: ${day.created + day.completed}个`}
+                          title={`${format(day.date, 'yyyy年MM月dd日', { locale: zhCN })}\n创建: ${day.created}个任务, ${day.subtaskCreated}个子任务\n完成: ${day.completed}个任务, ${day.subtaskCompleted}个子任务\n总活动: ${totalActivity}个`}
                           onClick={() => onDateChange(day.date)}
                           onMouseEnter={() => setHoveredCell(day.dateString)}
                           onMouseLeave={() => setHoveredCell(null)}

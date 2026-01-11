@@ -239,10 +239,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           >
-            <option value="">请选择来源</option>
             {TASK_SOURCE_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>
-                {option.icon} {option.label}
+                 {option.label}
               </option>
             ))}
           </select>
@@ -254,7 +253,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             优先级
           </label>
-          <div className="flex space-x-4 pt-2">
+          <div className="flex space-x-4 pt-2 bg-gray-100 rounded-lg p-3">
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -283,27 +282,27 @@ const TaskForm: React.FC<TaskFormProps> = ({
             </div>
           </div>
         </div>
-      </div>
 
-      {/* 项目选择字段 */}
-      <div>
-        <label htmlFor="task-project" className="block text-sm font-medium text-gray-700 mb-1">
-          所属项目
-        </label>
-        <select
-          id="task-project"
-          name="projectId"
-          value={formData.projectId || ''}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-        >
-          <option value="">无项目</option>
-          {projects.map(project => (
-            <option key={project.id} value={project.id}>
-              {project.name} ({project.status === 'active' ? '进行中' : project.status === 'completed' ? '已完成' : project.status === 'planning' ? '规划中' : project.status === 'on-hold' ? '暂停' : '已取消'})
-            </option>
-          ))}
-        </select>
+        {/* 项目选择字段 */}
+        <div>
+          <label htmlFor="task-project" className="block text-sm font-medium text-gray-700 mb-1">
+            所属项目
+          </label>
+          <select
+            id="task-project"
+            name="projectId"
+            value={formData.projectId || ''}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="">无项目</option>
+            {projects.map(project => (
+              <option key={project.id} value={project.id}>
+                {project.name} ({project.status === 'active' ? '进行中' : project.status === 'completed' ? '已完成' : project.status === 'planning' ? '规划中' : project.status === 'on-hold' ? '暂停' : '已取消'})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">
