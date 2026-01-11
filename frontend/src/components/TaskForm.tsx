@@ -69,17 +69,14 @@ const TaskForm: React.FC<TaskFormProps> = ({
         status: task.status,
         urgency: task.urgency,
         importance: task.importance,
-        // 如果任务没有截止日期，则使用创建日期作为截止日期
         dueDate: taskDueDate || taskCreatedAt,
         createdAt: taskCreatedAt,
         categoryId: task.categoryId,
-        projectId: task.projectId // 新增：设置项目ID
+        projectId: task.projectId
       });
     } else {
-      // 重置表单数据
       const today = formatDateToLocal(new Date());
       const defaultCreatedAtFormatted = defaultCreatedAt ? formatDateToLocal(defaultCreatedAt) : today;
-      // 如果没有提供默认截止日期，则使用创建日期作为截止日期
       const defaultDueDateFormatted = defaultDueDate ? formatDateToLocal(defaultDueDate) : defaultCreatedAtFormatted;
       
       setFormData({
@@ -89,10 +86,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
         urgency: false,
         importance: false,
         dueDate: defaultDueDateFormatted,
-        // 如果提供了defaultCreatedAt则使用，否则默认使用今天
         createdAt: defaultCreatedAtFormatted,
         categoryId: undefined as number | undefined,
-        projectId: defaultProjectId || undefined // 新增：使用默认项目ID
+        projectId: defaultProjectId || undefined
       });
     }
   }, [task, defaultDueDate, defaultCreatedAt, defaultProjectId]);

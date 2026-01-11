@@ -30,6 +30,7 @@ const TasksPage: React.FC = () => {
   const location = useLocation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [taskFormKey, setTaskFormKey] = useState(0); // 表单key，用于强制TaskForm组件重新挂载，确保每次新建任务时表单状态完全重置
   const [filter, setFilter] = useState<'all' | 'overdue' | 'due-today' | 'this-week'>('all');
   const [viewMode, setViewMode] = useState<'quadrant' | 'kanban' | 'personalized'>('quadrant'); // 新增：个性化视图
   const [searchQuery, setSearchQuery] = useState(''); // 新增：搜索查询状态
@@ -327,6 +328,12 @@ const TasksPage: React.FC = () => {
     setEditingTask(null);
   };
 
+  const handleOpenCreateForm = () => {
+    setEditingTask(null);
+    setTaskFormKey(prev => prev + 1);
+    setIsFormOpen(true);
+  };
+
   const handleDragStartTask = (_task: Task) => {
     // 拖拽开始时的处理逻辑（如果需要的话）
   };
@@ -565,6 +572,7 @@ const TasksPage: React.FC = () => {
 
       {/* 任务表单弹窗 */}
       <TaskForm
+        key={editingTask ? `edit-${editingTask.id}` : `create-${taskFormKey}`}
         task={editingTask}
         onSubmit={editingTask ? handleUpdateTask : handleCreateTask}
         onClose={handleCloseForm}
@@ -615,7 +623,7 @@ const TasksPage: React.FC = () => {
               {/* 添加任务按钮 */}
               {!isBatchDeleteMode && (
                 <button
-                  onClick={() => setIsFormOpen(true)}
+                  onClick={handleOpenCreateForm}
                   className={combineStyles(
                     `${UI_COLORS.blue600} text-white ${CARD_STYLES.spacing.icon} ${UI_COLORS.blueHover700}`,
                     getCardStyle('button'),

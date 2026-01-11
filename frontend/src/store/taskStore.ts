@@ -86,19 +86,32 @@ export const useTaskStore = create<TaskState>((set) => ({
       set({ loading: true, error: null });
       const response = await api.put(`/tasks/${taskId}`, task);
       
+      // 新的响应格式: { task: updatedTask, parentTask: updatedParentTask | null }
+      const { task: updatedTask, parentTask: updatedParentTask } = response.data;
+      
       set((state) => {
-        const updatedTasks = state.tasks.map((t) => {
-          // 如果是主任务，直接更新
+        let updatedTasks = state.tasks.map((t) => {
+          // 如果是被更新的任务本身（主任务或子任务）
           if (t.id === taskId) {
-            return response.data;
+            return updatedTask;
           }
+          
+          // 如果父任务也被更新了，更新父任务
+          if (updatedParentTask && t.id === updatedParentTask.id) {
+            return updatedParentTask;
+          }
+          
           // 如果是子任务，需要在父任务的subtasks数组中更新
           if (t.subtasks && t.subtasks.length > 0) {
             const updatedSubtasks = t.subtasks.map((subtask) => 
-              subtask.id === taskId ? response.data : subtask
+              subtask.id === taskId ? updatedTask : subtask
             );
             // 检查是否有子任务被更新
             if (updatedSubtasks.some((subtask, index) => subtask !== t.subtasks![index])) {
+              // 如果这个父任务也被更新了状态，使用更新后的状态
+              if (updatedParentTask && t.id === updatedParentTask.id) {
+                return { ...updatedParentTask, subtasks: updatedSubtasks };
+              }
               return { ...t, subtasks: updatedSubtasks };
             }
           }
@@ -179,12 +192,20 @@ export const useTaskStore = create<TaskState>((set) => ({
   createSubtask: async (parentTaskId, subtaskData) => {
     try {
       set({ loading: true, error: null });
-      const newSubtask = await createSubtask(parentTaskId, subtaskData);
+      const result = await createSubtask(parentTaskId, subtaskData);
+      const { subtask: newSubtask, parentTask: updatedParentTask } = result;
       
-      // 更新本地状态：将子任务添加到父任务的subtasks数组中
+      // 更新本地状态：将子任务添加到父任务的subtasks数组中，并更新父任务状态
       set((state) => ({
         tasks: state.tasks.map((task) => {
           if (task.id === parentTaskId) {
+            // 如果父任务状态也被更新了，使用更新后的父任务
+            if (updatedParentTask) {
+              return {
+                ...updatedParentTask,
+                subtasks: [...(updatedParentTask.subtasks || []), newSubtask]
+              };
+            }
             return {
               ...task,
               subtasks: [...(task.subtasks || []), newSubtask]

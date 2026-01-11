@@ -1,10 +1,10 @@
 import api from './api';
 import { Task } from '../types';
 
-// 创建子任务
+// 创建子任务 - 返回 { subtask, parentTask }
 export const createSubtask = async (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => {
   const response = await api.post(`/tasks/${parentTaskId}/subtasks`, subtaskData);
-  return response.data;
+  return response.data; // { subtask, parentTask }
 };
 
 // 获取任务的子任务列表

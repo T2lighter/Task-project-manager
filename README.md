@@ -61,7 +61,7 @@
 - **进度跟踪**：实时跟踪目标和关键结果的完成进度
 - **状态管理**：草稿、进行中、已完成、已取消
 
-#### � 四个平示级组件
+####  四个平示级组件
 - **关键结果**：描述、状态、进度跟踪
 - **资源需求**：资源类型、详细描述、状态管理
 - **执行计划**：阶段名称、详细描述
@@ -153,6 +153,8 @@
 - **date-fns** - 日期处理库
 - **Recharts** - 图表可视化库
 - **marked** - Markdown解析器 🆕
+- **@uiw/react-md-editor** - 专业Markdown编辑器 🆕
+- **lunar-javascript** - 农历日期处理 🆕
 
 ### 后端技术
 - **Node.js** - JavaScript运行时
@@ -187,6 +189,9 @@
 │   │   │   ├── SubtaskModal.tsx      # 子任务模态框组件 🆕
 │   │   │   ├── TaskSelector.tsx      # 任务选择器组件 🆕
 │   │   │   ├── AlertDialog.tsx       # 提示对话框组件 🆕
+│   │   │   ├── ProjectOKR.tsx        # OKR管理组件 🆕
+│   │   │   ├── ObjectiveForm.tsx     # 目标表单组件 🆕
+│   │   │   ├── KeyResultForm.tsx     # 关键结果表单组件 🆕
 │   │   │   └── ...                   # 其他组件
 │   │   ├── pages/            # 页面组件
 │   │   │   ├── ProfilePage.tsx       # 个人主页
@@ -205,7 +210,8 @@
 │   │   │   ├── taskService.ts        # 任务服务
 │   │   │   ├── statsService.ts       # 统计服务
 │   │   │   ├── projectService.ts     # 项目服务 🆕
-│   │   │   └── projectNoteService.ts # 项目记录服务 🆕
+│   │   │   ├── projectNoteService.ts # 项目记录服务 🆕
+│   │   │   └── okrService.ts         # OKR服务 🆕
 │   │   ├── utils/            # 工具函数
 │   │   │   ├── taskUtils.ts          # 任务工具函数
 │   │   │   └── calendarUtils.ts      # 日历工具函数
@@ -222,21 +228,24 @@
     │   │   ├── categoryController.ts # 分类控制器
     │   │   ├── statsController.ts    # 统计控制器
     │   │   ├── projectController.ts  # 项目控制器 🆕
-    │   │   └── projectNoteController.ts # 项目记录控制器 🆕
+    │   │   ├── projectNoteController.ts # 项目记录控制器 🆕
+    │   │   └── okrController.ts      # OKR控制器 🆕
     │   ├── services/         # 业务逻辑层
     │   │   ├── authService.ts        # 认证服务
     │   │   ├── taskService.ts        # 任务服务
     │   │   ├── categoryService.ts    # 分类服务
     │   │   ├── statsService.ts       # 统计服务
     │   │   ├── projectService.ts     # 项目服务 🆕
-    │   │   └── projectNoteService.ts # 项目记录服务 🆕
+    │   │   ├── projectNoteService.ts # 项目记录服务 🆕
+    │   │   └── okrService.ts         # OKR服务 🆕
     │   ├── routes/           # 路由配置
     │   │   ├── authRoutes.ts         # 认证路由
     │   │   ├── taskRoutes.ts         # 任务路由
     │   │   ├── categoryRoutes.ts     # 分类路由
     │   │   ├── statsRoutes.ts        # 统计路由
     │   │   ├── projectRoutes.ts      # 项目路由 🆕
-    │   │   └── projectNoteRoutes.ts  # 项目记录路由 🆕
+    │   │   ├── projectNoteRoutes.ts  # 项目记录路由 🆕
+    │   │   └── okrRoutes.ts          # OKR路由 🆕
     │   ├── middleware/       # 中间件
     │   │   └── auth.ts               # 认证中间件
     │   ├── utils/            # 工具函数
@@ -247,7 +256,7 @@
     └── .env                  # 环境变量
 ```
 
-## � 项目打包和部署
+##  项目打包和部署
 
 ### 快速部署
 ```bash
@@ -374,6 +383,15 @@ VITE_API_URL=http://localhost:5000/api
 - `PUT /api/notes/:id` - 更新项目记录
 - `DELETE /api/notes/:id` - 删除项目记录
 
+### OKR接口 🆕
+- `GET /api/projects/:projectId/objectives` - 获取项目目标列表
+- `POST /api/projects/:projectId/objectives` - 创建项目目标
+- `PUT /api/objectives/:id` - 更新目标
+- `DELETE /api/objectives/:id` - 删除目标
+- `POST /api/objectives/:objectiveId/key-results` - 创建关键结果
+- `PUT /api/key-results/:id` - 更新关键结果
+- `DELETE /api/key-results/:id` - 删除关键结果
+
 ### 分类接口
 - `GET /api/categories` - 获取分类列表
 - `POST /api/categories` - 创建分类
@@ -479,6 +497,11 @@ VITE_API_URL=http://localhost:5000/api
 - 分类表：支持任务分类管理
 - 项目表：存储项目信息和状态 🆕
 - 项目记录表：存储项目记录和总结 🆕
+- 目标表(Objective)：存储OKR目标 🆕
+- 关键结果表(KeyResult)：存储OKR关键结果 🆕
+- 资源需求表(ResourceRequirement)：存储目标所需资源 🆕
+- 执行计划表(ExecutionPlan)：存储目标执行计划 🆕
+- 行动检查表(ActionCheck)：存储目标行动检查项 🆕
 - 包含创建时间和更新时间字段
 
 ### 性能优化 🆕
@@ -503,7 +526,7 @@ VITE_API_URL=http://localhost:5000/api
 - [ ] 项目成员管理 🆕
 - [ ] 文件管理功能 🆕
 
-## 🆕 最新更新 (2024年12月31日)
+## 🆕 最新更新 (2026年1月)
 
 ### 重大功能更新
 1. **完整的项目管理系统**

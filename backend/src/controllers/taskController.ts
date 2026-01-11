@@ -52,12 +52,16 @@ export const updateExistingTask = async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
     const taskId = parseInt(req.params.id);
     
-    const task = await updateTask(taskId, req.body, userId);
-    if (!task) {
+    const result = await updateTask(taskId, req.body, userId);
+    if (!result || !result.updatedTask) {
       return res.status(404).json({ message: '任务不存在' });
     }
     
-    res.json(task);
+    // 返回更新后的任务和可能更新的父任务
+    res.json({
+      task: result.updatedTask,
+      parentTask: result.updatedParentTask
+    });
   } catch (error) {
     console.error('更新任务时出错:', error);
     res.status(400).json({ message: (error as Error).message });
@@ -116,8 +120,12 @@ export const createNewSubtask = async (req: Request, res: Response) => {
       return res.status(400).json({ message: '父任务ID无效' });
     }
     
-    const subtask = await createSubtask(parentTaskId, req.body, userId);
-    res.status(201).json(subtask);
+    const result = await createSubtask(parentTaskId, req.body, userId);
+    // 返回子任务和可能更新的父任务
+    res.status(201).json({
+      subtask: result.subtask,
+      parentTask: result.updatedParentTask
+    });
   } catch (error) {
     res.status(400).json({ message: (error as Error).message });
   }

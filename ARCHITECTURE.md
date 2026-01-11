@@ -104,6 +104,9 @@
 | **Axios** | 1.x | HTTP客户端 | 请求拦截、响应处理、错误统一处理 |
 | **date-fns** | 2.x | 日期处理 | 模块化、轻量级、国际化支持 |
 | **Recharts** | 2.x | 图表库 | React原生、可定制、响应式 |
+| **marked** | 12.x | Markdown解析 | 高性能、符合标准、扩展性强 🆕 |
+| **@uiw/react-md-editor** | 4.x | Markdown编辑 | 功能丰富、实时预览、React组件 🆕 |
+| **lunar-javascript** | 1.x | 农历支持 | 精确农历算法、节假日支持 🆕 |
 
 ### 3.2 后端技术栈
 
@@ -530,6 +533,91 @@ model Category {
 }
 ```
 
+#### 项目表 (Project) 🆕
+```prisma
+model Project {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  status      String    @default("planning") // planning, active, completed, on_hold, cancelled
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // 关联关系
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks       Task[]    // 项目关联的任务
+  notes       ProjectNote[]
+  objectives  Objective[]
+  
+  @@map("projects")
+}
+```
+
+#### 项目记录表 (ProjectNote) 🆕
+```prisma
+model ProjectNote {
+  id          Int       @id @default(autoincrement())
+  title       String
+  content     String
+  type        String    @default("note") // note, summary, meeting, issue, milestone, reflection
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // 关联关系
+  projectId   Int
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@map("project_notes")
+}
+```
+
+#### OKR目标表 (Objective) 🆕
+```prisma
+model Objective {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  status      String    @default("draft") // draft, active, completed, cancelled
+  progress    Int       @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // 关联关系
+  projectId   Int
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  keyResults  KeyResult[]
+  
+  @@map("objectives")
+}
+```
+
+#### 关键结果表 (KeyResult) 🆕
+```prisma
+model KeyResult {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  status      String    @default("pending")
+  currentValue Float    @default(0)
+  targetValue  Float
+  unit        String?
+  weight      Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // 关联关系
+  objectiveId Int
+  objective   Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  
+  @@map("key_results")
+}
+```
+
 ### 5.2 数据关系图
 
 ```
@@ -672,6 +760,48 @@ interface UpdateTaskRequest {
 }
 ```
 
+#### 项目接口 🆕
+```typescript
+// GET /api/projects
+interface GetProjectsQuery {
+  status?: ProjectStatus
+  search?: string
+}
+
+// POST /api/projects
+interface CreateProjectRequest {
+  title: string
+  description?: string
+  status?: ProjectStatus
+  startDate?: string
+  endDate?: string
+}
+```
+
+#### OKR接口 🆕
+```typescript
+// GET /api/projects/:projectId/objectives
+interface GetObjectivesResponse {
+  objectives: ObjectiveWithDetails[]
+}
+
+// POST /api/projects/:projectId/objectives
+interface CreateObjectiveRequest {
+  title: string
+  description?: string
+  startDate?: string
+  endDate?: string
+}
+
+// POST /api/objectives/:id/key-results
+interface CreateKeyResultRequest {
+  title: string
+  targetValue: number
+  unit?: string
+  weight?: number
+}
+```
+
 #### 统计接口
 ```typescript
 // GET /api/stats/overview
@@ -754,7 +884,18 @@ src/
 │   └── calendar/        # 日历相关组件
 │       ├── CalendarGrid.tsx
 │       ├── CalendarDay.tsx
-│       └── CalendarHeader.tsx
+│       ├── CalendarDay.tsx
+      └── CalendarHeader.tsx
+  ├── project/           # 项目相关组件 🆕
+  │   ├── ProjectCard.tsx
+  │   ├── ProjectForm.tsx
+  │   ├── ProjectNotes.tsx
+  │   ├── GanttChart.tsx
+  │   └── ProjectOKR.tsx
+  ├── okr/               # OKR相关组件 🆕
+  │   ├── ObjectiveForm.tsx
+  │   ├── KeyResultForm.tsx
+  │   └── ExecutionPlanForm.tsx
 ├── pages/               # 页面组件
 │   ├── ProfilePage.tsx
 │   ├── TasksPage.tsx
