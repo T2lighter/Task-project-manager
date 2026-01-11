@@ -33,6 +33,7 @@ model Task {
   status       String    @default("pending")
   urgency      Boolean   @default(false)
   importance   Boolean   @default(false)
+  source       String?   // 任务来源：verbal(口头说明), email(邮件收取), im(通讯软件)
   dueDate      DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

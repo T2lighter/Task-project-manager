@@ -4,6 +4,7 @@ import { useProjectStore } from '../store/projectStore';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
 import RichTextEditor from './RichTextEditor';
+import { TASK_SOURCE_OPTIONS } from '../constants';
 
 interface TaskFormProps {
   task: Task | null;
@@ -36,6 +37,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     status: 'pending' as Task['status'],
     urgency: false,
     importance: false,
+    source: '' as Task['source'] | '', // 任务来源
     dueDate: '',
     createdAt: '', // 新增：创建时间字段
     categoryId: undefined as number | undefined,
@@ -69,6 +71,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         status: task.status,
         urgency: task.urgency,
         importance: task.importance,
+        source: task.source || '',
         dueDate: taskDueDate || taskCreatedAt,
         createdAt: taskCreatedAt,
         categoryId: task.categoryId,
@@ -85,6 +88,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         status: 'pending' as Task['status'],
         urgency: false,
         importance: false,
+        source: '',
         dueDate: defaultDueDateFormatted,
         createdAt: defaultCreatedAtFormatted,
         categoryId: undefined as number | undefined,
@@ -123,6 +127,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     // 提交任务数据
     onSubmit({
       ...formData,
+      source: formData.source || undefined, // 空字符串转为 undefined
       dueDate: finalDueDate ? new Date(finalDueDate) : undefined,
       createdAt: formData.createdAt ? new Date(formData.createdAt) : undefined
     });
@@ -223,6 +228,28 @@ const TaskForm: React.FC<TaskFormProps> = ({
           </select>
         </div>
 
+        <div>
+          <label htmlFor="task-source" className="block text-sm font-medium text-gray-700 mb-1">
+            任务来源
+          </label>
+          <select
+            id="task-source"
+            name="source"
+            value={formData.source || ''}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="">请选择来源</option>
+            {TASK_SOURCE_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.icon} {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             优先级

@@ -889,15 +889,14 @@ const TasksPage: React.FC = () => {
               <button
                 onClick={() => setShowLabelManager(true)}
                 className={combineStyles(
-                  'bg-gradient-to-r from-purple-500 to-indigo-500 text-white hover:from-purple-600 hover:to-indigo-600',
-                  'px-4 py-2 rounded-lg text-sm font-medium',
-                  'shadow-md hover:shadow-lg',
-                  'transition-all duration-200',
-                  'flex items-center gap-2'
+                  getCardStyle('viewToggle', 'button'),
+                  viewMode === 'personalized'
+                    ? UI_COLORS.viewModeActive
+                    : UI_COLORS.viewModeInactive
                 )}
               >
-                <span className="text-base">🏷️</span>
-                管理标签
+                <span className="text-base"></span>
+                 管理标签
               </button>
             )}
           </div>

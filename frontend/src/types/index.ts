@@ -144,6 +144,7 @@ export interface Task {
   status: 'pending' | 'in-progress' | 'completed';
   urgency: boolean;
   importance: boolean;
+  source?: 'verbal' | 'email' | 'im'; // 任务来源：口头说明、邮件收取、通讯软件
   dueDate?: Date;
   userId: number;
   categoryId?: number;
