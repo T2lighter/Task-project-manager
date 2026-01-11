@@ -70,9 +70,6 @@ const ProjectTaskStatsChart: React.FC<ProjectTaskStatsChartProps> = ({
     return b.totalTasks - a.totalTasks;
   });
 
-  // 获取当前时间（用于逾期判断）
-  const now = new Date();
-
   // 获取项目状态颜色
   const getProjectStatusColor = (project: ProjectTaskStats) => {
     if (project.overdueTasks > 0) return 'border-red-200 bg-red-50';

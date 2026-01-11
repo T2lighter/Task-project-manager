@@ -15,7 +15,7 @@ const COLORS = {
 };
 
 const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantClick }) => {
-  const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
+  const [, setActiveIndex] = React.useState<number | null>(null);
   const total = stats.urgentImportant + stats.importantNotUrgent + stats.urgentNotImportant + stats.neitherUrgentNorImportant;
   
   // 按照用户要求的顺序排列：紧急且重要 → 重要但不紧急 → 紧急但不重要 → 既不紧急也不重要
@@ -137,7 +137,6 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantCl
         <div className="ml-9 space-y-4 w-32">
           {data.map((item, index) => {
             const percentage = ((item.value / total) * 100).toFixed(0);
-            const isActive = activeIndex === index;
             return (
               <div 
                 key={item.key} 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Task } from '../types';
 import { format } from 'date-fns';
-import { getPriorityConfig, isTaskOverdue, isTaskDueToday, isTaskDueThisWeek } from '../utils/taskUtils';
+import { getPriorityConfig, isTaskOverdue, isTaskDueToday } from '../utils/taskUtils';
 import { TASK_STATUS_NAMES } from '../constants';
 import SubtaskList from './SubtaskList';
 import SubtaskModal from './SubtaskModal';
@@ -34,7 +34,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onDragStart, 
   compact = false, 
   showPriority = true,
-  showSubtasks = false, // 默认不显示子任务
+  showSubtasks: _showSubtasks = false, // 默认不显示子任务（保留用于未来扩展）
   onCreateSubtask,
   showCompleted = true, // 默认显示已完成样式
   showStatus = true, // 默认显示状态标签

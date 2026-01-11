@@ -15,7 +15,7 @@ const COLORS = {
 };
 
 const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatusClick }) => {
-  const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
+  const [, setActiveIndex] = React.useState<number | null>(null);
   
   const data = [
     { name: '已完成', value: stats.completed, color: COLORS.completed, key: 'completed' },
@@ -107,7 +107,6 @@ const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatus
         <div className="ml-6 space-y-6 w-32">
           {data.map((item, index) => {
             const percentage = ((item.value / stats.total) * 100).toFixed(0);
-            const isActive = activeIndex === index;
             return (
               <div 
                 key={item.key} 
