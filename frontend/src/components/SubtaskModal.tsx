@@ -122,7 +122,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
             id="subtask-description"
             value={formData.description}
             onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
-            placeholder="输入子任务描述..."
+            placeholder="输入子任务来源、子任务描述..."
             minHeight="80px"
           />
         </div>

@@ -175,7 +175,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           id="task-description"
           value={formData.description}
           onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
-          placeholder="输入任务描述..."
+          placeholder="输入任务来源、任务描述..."
           minHeight="80px"
         />
       </div>

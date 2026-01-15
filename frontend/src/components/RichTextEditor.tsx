@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { compressImage, uploadImage } from '../services/uploadService';
 
 interface RichTextEditorProps {
   value: string;
@@ -19,6 +20,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalChange = useRef(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // 初始化和同步外部值
   useEffect(() => {
@@ -37,6 +40,120 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       onChange(editorRef.current.innerHTML);
     }
   }, [onChange]);
+
+  const insertImageAtCursor = useCallback((imageUrl: string) => {
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    if (!range) {
+      if (editorRef.current) {
+        editorRef.current.innerHTML += `<img src="${imageUrl}" alt="image" />`;
+        handleInput();
+      }
+      return;
+    }
+
+    range.deleteContents();
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = 'image';
+    range.insertNode(img);
+
+    const spacer = document.createTextNode('');
+    img.after(spacer);
+
+    const newRange = document.createRange();
+    newRange.setStartAfter(img);
+    newRange.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(newRange);
+    handleInput();
+  }, [handleInput]);
+
+  const handlePaste = useCallback(async (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i += 1) {
+      const item = items[i];
+
+      if (item.type.startsWith('image/')) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (!file) return;
+
+        try {
+          setIsUploading(true);
+          const processedFile = await compressImage(file, 500);
+          const result = await uploadImage(processedFile);
+          insertImageAtCursor(result.url);
+        } catch (error) {
+          console.error('图片上传失败:', error);
+        } finally {
+          setIsUploading(false);
+        }
+        return;
+      }
+    }
+  }, [insertImageAtCursor]);
+
+  const handleDoubleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.tagName === 'IMG') {
+      const src = (target as HTMLImageElement).src;
+      if (src) {
+        setPreviewImage(src);
+      }
+    }
+  }, []);
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const inserted = document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
+      if (!inserted) {
+        const selection = window.getSelection();
+        const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+        if (range) {
+          const tabNode = document.createTextNode('\u00A0\u00A0\u00A0\u00A0');
+          range.insertNode(tabNode);
+          const newRange = document.createRange();
+          newRange.setStartAfter(tabNode);
+          newRange.collapse(true);
+          selection?.removeAllRanges();
+          selection?.addRange(newRange);
+        }
+      }
+      handleInput();
+      return;
+    }
+
+    if (event.key !== 'Backspace') return;
+
+    const selection = window.getSelection();
+    if (!selection || !selection.isCollapsed) return;
+    const range = selection.getRangeAt(0);
+    const container = range.startContainer;
+
+    if (container.nodeType === Node.TEXT_NODE && range.startOffset === 0) {
+      const previous = container.previousSibling;
+      if (previous && (previous as HTMLElement).tagName === 'IMG') {
+        event.preventDefault();
+        previous.remove();
+        handleInput();
+      }
+      return;
+    }
+
+    if (container.nodeType === Node.ELEMENT_NODE && range.startOffset > 0) {
+      const element = container as HTMLElement;
+      const previous = element.childNodes[range.startOffset - 1];
+      if (previous && (previous as HTMLElement).tagName === 'IMG') {
+        event.preventDefault();
+        previous.remove();
+        handleInput();
+      }
+    }
+  }, [handleInput]);
 
   // 执行格式化命令 - 使用 mousedown 事件避免失去选区
   const execCommand = useCallback((command: string, value?: string) => {
@@ -111,6 +228,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <ToolbarButton onMouseDown={() => execCommand('removeFormat')} title="清除格式">
           <span className="text-xs">✕</span>
         </ToolbarButton>
+        <div className="ml-auto text-[10px] text-gray-500">
+          {isUploading ? '图片上传中...' : '支持 Ctrl+V 粘贴图片'}
+        </div>
       </div>
       
       {/* 编辑区域 - 移除 draggable 属性，改用事件阻止 */}
@@ -121,6 +241,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         onDragStart={handleDragStart}
         onDrag={handleDrag}
         onDragOver={handleDrag}
+        onPaste={handlePaste}
+        onDoubleClick={handleDoubleClick}
+        onKeyDown={handleKeyDown}
         onInput={handleInput}
         onBlur={handleInput}
         data-placeholder={placeholder}
@@ -129,7 +252,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
                    focus:border-blue-500 overflow-auto
                    [&:empty]:before:content-[attr(data-placeholder)] [&:empty]:before:text-gray-400
                    prose prose-sm max-w-none text-sm
-                   [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4"
+                   [&_ul]:list-disc [&_ul]:ml-4 [&_ol]:list-decimal [&_ol]:ml-4
+                   [&_img]:max-w-[40%] [&_img]:h-auto [&_img]:cursor-zoom-in"
         style={{ 
           minHeight,
           fontFamily: '"Segoe UI", "Microsoft YaHei", sans-serif',
@@ -139,6 +263,19 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           cursor: 'text'
         }}
       />
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setPreviewImage(null)}
+        >
+          <img
+            src={previewImage}
+            alt="预览"
+            className="max-h-[90vh] max-w-[90vw] object-contain shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };
