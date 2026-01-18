@@ -627,7 +627,12 @@ const TasksPage: React.FC = () => {
       />
 
       {/* 左右布局 */}
-      <div className={getCardStyle('grid', 'main')}>
+      <div className={combineStyles(
+        getCardStyle('grid', 'main'),
+        !isTaskListExpanded
+          ? 'w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] px-4 sm:px-6 lg:px-8'
+          : ''
+      )}>
         {/* 左侧：任务列表 */}
         <div className={combineStyles(
           getCardStyle('grid', 'leftCol'),
@@ -1030,9 +1035,10 @@ const TasksPage: React.FC = () => {
 
         {/* 右侧：视图区域 */}
         <div className={combineStyles(
-          getCardStyle('grid', 'rightCol'),
-          getCardStyle('animation', 'transition'),
-          !isTaskListExpanded ? 'lg:col-span-10' : ''
+          isTaskListExpanded
+            ? getCardStyle('grid', 'rightCol')
+            : 'lg:col-span-10',
+          getCardStyle('animation', 'transition')
         )}>
           {/* 视图切换按钮 */}
           <div className={combineStyles(getCardStyle('flex', 'rowBetween'), CARD_STYLES.spacing.section)}>

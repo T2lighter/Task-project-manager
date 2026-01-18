@@ -281,6 +281,7 @@ const ProfilePage: React.FC = () => {
     // 统计任务数据
     const mainTasks = tasks.filter(task => !task.parentTaskId);
     const inProgressTasks = mainTasks.filter(task => task.status === 'in-progress');
+    const blockedTasks = mainTasks.filter(task => task.status === 'blocked');
     const pendingTasks = mainTasks.filter(task => task.status === 'pending');
     const completedTasks = mainTasks.filter(task => task.status === 'completed');
     
@@ -347,6 +348,19 @@ const ProfilePage: React.FC = () => {
         messageData.projects = [];
       }
       
+    } else if (blockedTasks.length > 0) {
+      const primaryTask = blockedTasks[0];
+      messageData.tasks = [primaryTask];
+      if (primaryTask.project) {
+        messageData.projects = [primaryTask.project];
+      }
+      
+      if (blockedTasks.length === 1) {
+        messageData.text = `任务被阻塞，建议先排除障碍`;
+      } else {
+        messageData.text = `有${blockedTasks.length}项任务被阻塞，建议优先排除阻碍`;
+      }
+      
     } else if (pendingTasks.length > 0) {
       const primaryTask = pendingTasks[0];
       messageData.tasks = [primaryTask];
@@ -393,7 +407,7 @@ const ProfilePage: React.FC = () => {
   };
 
   // 渲染今日信息内容
-  const renderDailyMessage = (overdueTaskList: any[], inProgressTaskList: any[], pendingTaskList: any[], overdueProjectList: any[], inProgressProjectList: any[], pendingProjectList: any[]) => {
+  const renderDailyMessage = (overdueTaskList: any[], inProgressTaskList: any[], blockedTaskList: any[], pendingTaskList: any[], overdueProjectList: any[], inProgressProjectList: any[], pendingProjectList: any[]) => {
     const messageData = generateDailyMessage();
     const { text, tasks, projects } = messageData;
     
@@ -502,9 +516,10 @@ const ProfilePage: React.FC = () => {
 
       const hasOverdue = overdueTaskList.length > 0 || overdueProjectList.length > 0;
       const hasInProgress = inProgressTaskList.length > 0 || inProgressProjectList.length > 0;
+      const hasBlocked = blockedTaskList.length > 0;
       const hasPending = pendingTaskList.length > 0 || pendingProjectList.length > 0;
 
-      if (!hasOverdue && !hasInProgress && !hasPending) {
+      if (!hasOverdue && !hasInProgress && !hasBlocked && !hasPending) {
         return (
           <div className="text-base leading-relaxed mb-3 pb-3 border-b border-blue-200/50">
             <span className="text-gray-600">所有任务和项目都已完成，今天表现很棒！🎉</span>
@@ -541,7 +556,7 @@ const ProfilePage: React.FC = () => {
                 </>
               )}
               <span className="text-gray-600">已经逾期</span>
-              {(hasInProgress || hasPending) && <span className="text-gray-600">，</span>}
+              {(hasInProgress || hasBlocked || hasPending) && <span className="text-gray-600">，</span>}
             </>
           )}
           {(inProgressTaskList.length > 0 || inProgressProjectList.length > 0) && (
@@ -570,6 +585,19 @@ const ProfilePage: React.FC = () => {
                 </>
               )}
               <span className="text-gray-600">在处理中</span>
+              {(hasBlocked || hasPending) && <span className="text-gray-600">，</span>}
+            </>
+          )}
+          {blockedTaskList.length > 0 && (
+            <>
+              <TaskStatsTag 
+                count={blockedTaskList.length} 
+                taskList={blockedTaskList}
+                color="bg-purple-100 text-purple-800 border-purple-200 hover:border-purple-300" 
+                filter="blocked"
+                label="阻塞任务"
+              />
+              <span className="text-gray-600">个任务被阻塞</span>
               {hasPending && <span className="text-gray-600">，</span>}
             </>
           )}
@@ -689,6 +717,22 @@ const ProfilePage: React.FC = () => {
             <div className="text-base leading-relaxed">
               <TaskLink />
               正在处理中，继续保持专注
+              {projects.length > 0 && (
+                <>
+                  {' '}(项目: <ProjectLink project={projects[0]} />)
+                </>
+              )}
+              。{text.split('。')[1]}
+            </div>
+          </div>
+        );
+      } else if (text.includes('阻塞')) {
+        return (
+          <div>
+            {renderTaskOverview()}
+            <div className="text-base leading-relaxed">
+              <TaskLink />
+              {text.split('。')[0]}
               {projects.length > 0 && (
                 <>
                   {' '}(项目: <ProjectLink project={projects[0]} />)
@@ -821,13 +865,16 @@ const ProfilePage: React.FC = () => {
   const mainTasks = tasks ? tasks.filter(task => !task.parentTaskId) : [];
   const allTasks = mainTasks.length;
   const completedTasks = mainTasks.filter(task => task.status === 'completed').length;
-  
+
   // 计算任务列表和数量
   const inProgressTaskList = mainTasks.filter(task => task.status === 'in-progress');
   const inProgressTasks = inProgressTaskList.length;
-  
+
   const pendingTaskList = mainTasks.filter(task => task.status === 'pending');
   const pendingTasks = pendingTaskList.length;
+
+  const blockedTaskList = mainTasks.filter(task => task.status === 'blocked');
+  const blockedTasks = blockedTaskList.length;
 
   // 计算逾期任务列表和数量（截止日期后一天才算逾期）
   const now = new Date();
@@ -837,17 +884,17 @@ const ProfilePage: React.FC = () => {
 
   // 计算项目统计数据
   const allProjects = projects || [];
-  
+
   // 计算逾期项目列表和数量
-  const overdueProjectList = allProjects.filter(project => 
-    project.status !== 'completed' && 
-    project.endDate && 
+  const overdueProjectList = allProjects.filter(project =>
+    project.status !== 'completed' &&
+    project.endDate &&
     new Date(project.endDate) < now
   );
-  
+
   // 计算处理中项目列表和数量（active状态对应处理中）
   const inProgressProjectList = allProjects.filter(project => project.status === 'active');
-  
+
   // 计算待办项目列表和数量（planning状态对应待办）
   const pendingProjectList = allProjects.filter(project => project.status === 'planning');
 
@@ -860,9 +907,8 @@ const ProfilePage: React.FC = () => {
   const completionRate = allTasks > 0 ? ((completedTasks / allTasks) * 100).toFixed(1) : '0';
 
   // 计算四象限数据（使用quadrantStats后端数据）
-  const quadrantDisplay = quadrantStats ? 
-    `${quadrantStats.urgentImportant}/${quadrantStats.importantNotUrgent}/${quadrantStats.urgentNotImportant}/${quadrantStats.neitherUrgentNorImportant}` :
-    '0/0/0/0';
+  const quadrantDisplay = quadrantStats ?
+    `${quadrantStats.urgentImportant}/${quadrantStats.importantNotUrgent}/${quadrantStats.urgentNotImportant}/${quadrantStats.neitherUrgentNorImportant}` : '0/0/0/0';
 
   if (error) {
     return (
@@ -908,7 +954,7 @@ const ProfilePage: React.FC = () => {
             </div>
           </div>
         </div>
-        
+
         {/* 即使出错也显示基础信息 */}
         <div className="bg-white shadow rounded-lg p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">个人信息</h2>
@@ -936,7 +982,7 @@ const ProfilePage: React.FC = () => {
           <div className="lg:col-span-1">
             <UserInfoCard user={user} onLogout={handleLogout} />
           </div>
-          
+
           {/* 中间：今日信息 - 占3列 */}
           <div className="lg:col-span-3">
             <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl p-4 border border-blue-200 shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 h-full">
@@ -945,7 +991,7 @@ const ProfilePage: React.FC = () => {
               <div className="absolute bottom-0 left-0 w-20 h-20 bg-gradient-to-tr from-indigo-200/20 to-blue-200/20 rounded-full translate-y-10 -translate-x-10"></div>
               <div className="absolute top-1/2 right-1/4 w-2 h-2 bg-blue-300/40 rounded-full"></div>
               <div className="absolute top-1/4 right-1/3 w-1 h-1 bg-indigo-400/50 rounded-full"></div>
-              
+
               <div className="relative flex items-start gap-3 h-full">
                 <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-white text-lg">💡</span>
@@ -959,7 +1005,7 @@ const ProfilePage: React.FC = () => {
                     <div className="w-1.5 h-1.5 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full"></div>
                   </div>
                   <div className="text-gray-700 leading-relaxed font-medium flex-1 flex items-start text-sm">
-                    {renderDailyMessage(overdueTaskList, inProgressTaskList, pendingTaskList, overdueProjectList, inProgressProjectList, pendingProjectList)}
+                    {renderDailyMessage(overdueTaskList, inProgressTaskList, blockedTaskList, pendingTaskList, overdueProjectList, inProgressProjectList, pendingProjectList)}
                   </div>
                   <div className="mt-3 flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs text-blue-600">
@@ -983,7 +1029,7 @@ const ProfilePage: React.FC = () => {
       </div>
 
       {/* 所有统计卡片 - 一行显示 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-4">
         <StatsCard
           title="总任务数"
           value={allTasks}
@@ -1027,6 +1073,12 @@ const ProfilePage: React.FC = () => {
           onClick={() => navigate('/tasks', { state: { viewMode: 'kanban' } })}
         />
         <StatsCard
+          title="阻塞"
+          value={blockedTasks}
+          color="purple"
+          onClick={() => navigate('/tasks', { state: { viewMode: 'kanban', filter: 'blocked' } })}
+        />
+        <StatsCard
           title="待办"
           value={pendingTasks}
           color="yellow"
@@ -1041,7 +1093,7 @@ const ProfilePage: React.FC = () => {
       </div>
 
       {/* 任务创建与完成统计 */}
-      <TaskTrendOverview 
+      <TaskTrendOverview
         data={yearTimeSeriesData}
         period={selectedPeriod}
         selectedDate={selectedDate}
@@ -1053,24 +1105,24 @@ const ProfilePage: React.FC = () => {
       {/* 图表区域 - 三个组件并排显示 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 任务状态分布饼图 */}
-          {taskStats && (
-            <TaskStatusPieChart 
-              stats={taskStats} 
-onStatusClick={(status) => navigate('/tasks', { state: { viewMode: 'kanban', filter: status } })}
-            />
-          )}
-          
-          {/* 四象限分布饼图 */}
-          {quadrantStats && (
-            <QuadrantPieChart 
-              stats={quadrantStats} 
-              onQuadrantClick={(quadrant) => navigate('/tasks', { state: { quadrantFilter: quadrant } })}
-            />
-          )}
+        {taskStats && (
+          <TaskStatusPieChart
+            stats={taskStats}
+            onStatusClick={(status) => navigate('/tasks', { state: { viewMode: 'kanban', filter: status } })}
+          />
+        )}
+        
+        {/* 四象限分布饼图 */}
+        {quadrantStats && (
+          <QuadrantPieChart
+            stats={quadrantStats}
+            onQuadrantClick={(quadrant) => navigate('/tasks', { state: { quadrantFilter: quadrant } })}
+          />
+        )}
 
         {/* 任务耗时排行 */}
-        <TaskDurationRanking 
-          data={taskDurationRanking} 
+        <TaskDurationRanking
+          data={taskDurationRanking}
           year={selectedDate.getFullYear()}
           onTaskClick={(taskId) => navigate('/tasks', { state: { highlightTaskId: taskId } })}
         />
@@ -1085,8 +1137,8 @@ onStatusClick={(status) => navigate('/tasks', { state: { viewMode: 'kanban', fil
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 项目统计卡片 */}
         {projectStats ? (
-          <ProjectStatsCard 
-            stats={projectStats} 
+          <ProjectStatsCard
+            stats={projectStats}
             onProjectsClick={() => navigate('/projects')}
             onStatusFilter={setSelectedProjectStatus}
             selectedStatus={selectedProjectStatus}
@@ -1116,8 +1168,8 @@ onStatusClick={(status) => navigate('/tasks', { state: { viewMode: 'kanban', fil
         
         {/* 项目任务统计图表 */}
         {projectTaskStats.length > 0 ? (
-          <ProjectTaskStatsChart 
-            data={projectTaskStats} 
+          <ProjectTaskStatsChart
+            data={projectTaskStats}
             onProjectClick={(projectId) => navigate(`/projects/${projectId}`)}
             selectedStatus={selectedProjectStatus}
           />
