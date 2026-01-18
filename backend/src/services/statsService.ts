@@ -3,6 +3,13 @@ import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
 
 const prisma = new PrismaClient();
 
+const normalizeTaskStatus = (status: unknown): 'pending' | 'in-progress' | 'blocked' | 'completed' => {
+  if (status === 'pending' || status === 'in-progress' || status === 'blocked' || status === 'completed') {
+    return status;
+  }
+  return 'pending';
+};
+
 // 任务日期检查工具函数（使用date-fns优化实现）
 export const taskDateUtils = {
   // 检查任务是否逾期（截止日期后一天才算逾期）
@@ -50,6 +57,7 @@ export interface TaskStats {
   completed: number;
   inProgress: number;
   pending: number;
+  blocked: number;
   overdue: number;
   dueToday: number;
   completionRate: number;
@@ -79,6 +87,7 @@ export interface CategoryStats {
   completed: number;
   pending: number;
   inProgress: number;
+  blocked: number;
   completionRate: number;
 }
 
@@ -100,6 +109,7 @@ export interface ProjectTaskStats {
   completedTasks: number;
   inProgressTasks: number;
   pendingTasks: number;
+  blockedTasks: number;
   overdueTasks: number;
   completionRate: number;
   progress: number;
@@ -128,9 +138,10 @@ export const getTaskStats = async (userId: number, period: 'day' | 'week' | 'mon
     });
 
     const total = allTasks.length;
-    const completed = allTasks.filter(task => task.status === 'completed').length;
-    const inProgress = allTasks.filter(task => task.status === 'in-progress').length;
-    const pending = allTasks.filter(task => task.status === 'pending').length;
+    const completed = allTasks.filter(task => normalizeTaskStatus(task.status) === 'completed').length;
+    const inProgress = allTasks.filter(task => normalizeTaskStatus(task.status) === 'in-progress').length;
+    const pending = allTasks.filter(task => normalizeTaskStatus(task.status) === 'pending').length;
+    const blocked = allTasks.filter(task => normalizeTaskStatus(task.status) === 'blocked').length;
 
     // 使用统一的工具函数计算逾期任务
     const overdue = allTasks.filter(task => isTaskOverdue(task, now)).length;
@@ -146,6 +157,7 @@ export const getTaskStats = async (userId: number, period: 'day' | 'week' | 'mon
       completed,
       inProgress,
       pending,
+      blocked,
       overdue,
       dueToday,
       completionRate,
@@ -248,7 +260,7 @@ export const getTimeSeriesData = async (
       
       const completed = tasks.filter(task => {
         const taskDate = task.updatedAt;
-        return task.status === 'completed' && taskDate >= dayStart && taskDate <= dayEnd;
+        return normalizeTaskStatus(task.status) === 'completed' && taskDate >= dayStart && taskDate <= dayEnd;
       }).length;
       
       result.push({
@@ -309,7 +321,7 @@ export const getYearHeatmapData = async (
         createdMap.set(createdDate, (createdMap.get(createdDate) || 0) + 1);
       }
       
-      if (task.status === 'completed') {
+      if (normalizeTaskStatus(task.status) === 'completed') {
         const completedYear = task.updatedAt.getFullYear();
         if (completedYear === year) {
           const completedDate = format(task.updatedAt, 'yyyy-MM-dd');
@@ -326,7 +338,7 @@ export const getYearHeatmapData = async (
         subtaskCreatedMap.set(createdDate, (subtaskCreatedMap.get(createdDate) || 0) + 1);
       }
       
-      if (task.status === 'completed') {
+      if (normalizeTaskStatus(task.status) === 'completed') {
         const completedYear = task.updatedAt.getFullYear();
         if (completedYear === year) {
           const completedDate = format(task.updatedAt, 'yyyy-MM-dd');
@@ -391,9 +403,10 @@ export const getCategoryStats = async (userId: number, period: 'day' | 'week' | 
 
   return categories.map(category => {
     const total = category.tasks.length;
-    const completed = category.tasks.filter(task => task.status === 'completed').length;
-    const pending = category.tasks.filter(task => task.status === 'pending').length;
-    const inProgress = category.tasks.filter(task => task.status === 'in-progress').length;
+    const completed = category.tasks.filter(task => normalizeTaskStatus(task.status) === 'completed').length;
+    const pending = category.tasks.filter(task => normalizeTaskStatus(task.status) === 'pending').length;
+    const inProgress = category.tasks.filter(task => normalizeTaskStatus(task.status) === 'in-progress').length;
+    const blocked = category.tasks.filter(task => normalizeTaskStatus(task.status) === 'blocked').length;
     const completionRate = total > 0 ? (completed / total) * 100 : 0;
 
     return {
@@ -403,6 +416,7 @@ export const getCategoryStats = async (userId: number, period: 'day' | 'week' | 
       completed,
       pending,
       inProgress,
+      blocked,
       completionRate
     };
   }).filter(stat => stat.total > 0);
@@ -457,9 +471,10 @@ export const getProjectTaskStats = async (userId: number): Promise<ProjectTaskSt
     return projects.map(project => {
       const tasks = project.tasks;
       const totalTasks = tasks.length;
-      const completedTasks = tasks.filter(task => task.status === 'completed').length;
-      const inProgressTasks = tasks.filter(task => task.status === 'in-progress').length;
-      const pendingTasks = tasks.filter(task => task.status === 'pending').length;
+      const completedTasks = tasks.filter(task => normalizeTaskStatus(task.status) === 'completed').length;
+      const inProgressTasks = tasks.filter(task => normalizeTaskStatus(task.status) === 'in-progress').length;
+      const pendingTasks = tasks.filter(task => normalizeTaskStatus(task.status) === 'pending').length;
+      const blockedTasks = tasks.filter(task => normalizeTaskStatus(task.status) === 'blocked').length;
       
       // 使用统一的工具函数计算逾期任务
       const overdueTasks = tasks.filter(task => isTaskOverdue(task, now)).length;
@@ -475,6 +490,7 @@ export const getProjectTaskStats = async (userId: number): Promise<ProjectTaskSt
         completedTasks,
         inProgressTasks,
         pendingTasks,
+        blockedTasks,
         overdueTasks,
         completionRate,
         progress
@@ -536,15 +552,20 @@ export const getTaskDurationRanking = async (userId: number, year?: number): Pro
       let endDate: Date | null = null;
       let durationDays = 0;
 
+      const normalizedStatus = normalizeTaskStatus(task.status);
+
       // 确定任务的开始时间
       startDate = task.createdAt;
 
       // 确定任务的结束时间
-      if (task.status === 'completed') {
+      if (normalizedStatus === 'completed') {
         // 已完成任务使用更新时间作为结束时间
         endDate = task.updatedAt;
-      } else if (task.status === 'in-progress') {
-        // 进行中任务使用当前时间作为结束时间
+      } else if (normalizedStatus === 'in-progress') {
+        // 处理中任务使用当前时间作为结束时间
+        endDate = now;
+      } else if (normalizedStatus === 'blocked') {
+        // 阻塞任务使用当前时间作为结束时间
         endDate = now;
       } else if (task.dueDate) {
         // 待办任务如果有截止时间，使用截止时间作为预期结束时间
@@ -563,7 +584,7 @@ export const getTaskDurationRanking = async (userId: number, year?: number): Pro
         startDate,
         endDate,
         durationDays,
-        status: task.status,
+        status: normalizedStatus,
         projectName: task.project?.name
       };
     }).filter(task => task.durationDays > 0); // 只返回有持续时间的任务

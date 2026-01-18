@@ -13,7 +13,7 @@
 ### 📊 个人主页仪表盘
 - **用户信息展示**：用户名、邮箱等基本信息
 - **任务统计卡片**：总任务数、完成率、逾期任务、今日到期等8个核心指标
-- **项目统计卡片**：项目总数、进行中项目、完成率等项目维度统计
+- **项目统计卡片**：项目总数、处理中项目、完成率等项目维度统计
 - **任务活动热力图**：GitHub风格的年度任务活动可视化
   - 支持日、周、月时间周期选择
   - 显示创建和完成任务的活动强度
@@ -27,7 +27,7 @@
 ### 🏗️ 完整项目管理系统
 #### 📋 项目管理
 - **完整的项目CRUD**：创建、编辑、删除项目
-- **项目状态管理**：规划中、进行中、已完成、暂停、已取消
+- **项目状态管理**：规划中、处理中、已完成、暂停、已取消
 - **项目进度跟踪**：基于关联任务的完成情况自动计算
 - **项目统计分析**：任务分布、完成率、进度趋势
 - **项目搜索功能**：支持按项目名称、描述、状态搜索
@@ -59,9 +59,9 @@
 - **目标管理**：创建、编辑、跟踪项目目标
 - **关键结果**：量化的、可衡量的结果指标
 - **进度跟踪**：实时跟踪目标和关键结果的完成进度
-- **状态管理**：草稿、进行中、已完成、已取消
+- **状态管理**：草稿、处理中、已完成、已取消
 
-####  四个平示级组件
+####  四个平级组件
 - **关键结果**：描述、状态、进度跟踪
 - **资源需求**：资源类型、详细描述、状态管理
 - **执行计划**：阶段名称、详细描述
@@ -77,7 +77,7 @@
 - 支持拖拽在象限间移动任务
 
 #### 📌 看板展示模式
-- **待办**、**进行中**、**已完成** 三列布局
+- **待办**、**处理中**、**已完成** 三列布局
 - 支持拖拽改变任务状态
 - 紧凑的任务卡片设计
 - 优先级标签显示
@@ -103,7 +103,7 @@
 ### 🏷️ 任务功能
 - **完整的CRUD操作**：创建、编辑、删除、状态更新
 - **优先级管理**：重要性和紧急性双维度设置
-- **状态管理**：待办、进行中、已完成三种状态
+- **状态管理**：待办、处理中、已完成三种状态
 - **分类系统**：支持任务分类管理
 - **截止日期**：任务到期提醒
 - **项目关联**：任务可关联到具体项目
@@ -128,7 +128,7 @@
   - 普通: 灰色 (`bg-gray-100 text-gray-800`)
 - **状态标签**：
   - 已完成: 绿色 (`bg-green-100 text-green-800`)
-  - 进行中: 靛蓝 (`bg-indigo-100 text-indigo-800`)
+  - 处理中: 靛蓝 (`bg-indigo-100 text-indigo-800`)
   - 待办: 石板灰 (`bg-slate-100 text-slate-800`)
 - **项目标签**: 橙色 (`bg-orange-100 text-orange-800`)
 - **分类标签**: 紫色 (`bg-purple-100 text-purple-800`)
@@ -285,12 +285,19 @@ docker-compose up -d
 ### 部署文件说明
 - `Dockerfile` - Docker镜像构建文件
 - `docker-compose.yml` - Docker编排配置
-- `nginx.conf` - Nginx配置文件
+- `frontend/nginx.conf` - 前端Nginx配置文件
 - `.env.example` - 环境变量示例
 - `build.js` - 一键构建脚本
 - `scripts/deploy.sh` - 自动化部署脚本
 
 ## 🚀 快速开始
+
+### Windows 一键启动（推荐）
+- 运行 `start.bat`（或 `start.ps1`）自动安装依赖并启动前后端
+- 前端：http://localhost:5173
+- 后端：http://localhost:5000
+- 停止：运行 `stop.bat`
+  - 注意：`stop.bat` 会结束所有 `node.exe` 进程，可能影响你机器上其它 Node 程序
 
 ### 环境要求
 - Node.js 18+ 
@@ -310,9 +317,9 @@ cd task-manager
 cd backend
 npm install
 
-# 配置环境变量
-cp .env.example .env
-# 编辑 .env 文件，设置 JWT_SECRET 等配置
+# 配置环境变量（本地开发）
+# 在 backend/ 目录创建 backend/.env（此文件通常不提交到仓库）
+# 可参考根目录的 .env.example，并至少设置 JWT_SECRET / DATABASE_URL / FRONTEND_URL / PORT
 
 # 初始化数据库
 npx prisma generate
@@ -337,7 +344,7 @@ npm run dev
 
 ## 📋 环境配置
 
-### 后端环境变量 (.env)
+### 后端环境变量（本地开发：backend/.env）
 ```env
 # 数据库连接
 DATABASE_URL="file:./dev.db"
@@ -347,16 +354,21 @@ JWT_SECRET="your-super-secret-jwt-key"
 
 # 服务器配置
 PORT=5000
+FRONTEND_URL="http://localhost:5173"
 NODE_ENV=development
 ```
 
-### 前端环境变量 (.env)
-```env
-# API基础URL
-VITE_API_URL=http://localhost:5000/api
-```
+### 前端环境变量（可选）
+
+前端请求默认使用相对路径 `/api`：
+- 本地开发由 `frontend/vite.config.ts` 将 `/api` 代理到 `http://localhost:5000`
+- Docker/生产环境由 `frontend/nginx.conf` 将 `/api` 反向代理到后端容器
+
+说明：当前前端代码未读取 `VITE_API_URL` 变量（`frontend/src/services/api.ts` 的 `baseURL` 固定为 `/api`）。
 
 ## 🔌 API接口文档
+
+除注册/登录外，其它接口需要在请求头携带：`Authorization: Bearer <token>`。
 
 ### 认证接口
 - `POST /api/auth/register` - 用户注册
@@ -365,9 +377,15 @@ VITE_API_URL=http://localhost:5000/api
 ### 任务接口
 - `GET /api/tasks` - 获取任务列表
 - `POST /api/tasks` - 创建任务
+- `GET /api/tasks/main` - 获取主任务列表
+- `GET /api/tasks/quadrant` - 按象限获取任务
+- `DELETE /api/tasks/batch` - 批量删除任务
 - `GET /api/tasks/:id` - 获取任务详情
 - `PUT /api/tasks/:id` - 更新任务
 - `DELETE /api/tasks/:id` - 删除任务
+- `POST /api/tasks/:id/copy` - 复制任务
+- `POST /api/tasks/:parentTaskId/subtasks` - 创建子任务
+- `GET /api/tasks/:parentTaskId/subtasks` - 获取子任务列表
 
 ### 项目接口 🆕
 - `GET /api/projects` - 获取项目列表
@@ -384,13 +402,24 @@ VITE_API_URL=http://localhost:5000/api
 - `DELETE /api/notes/:id` - 删除项目记录
 
 ### OKR接口 🆕
+- `POST /api/objectives` - 创建目标
 - `GET /api/projects/:projectId/objectives` - 获取项目目标列表
-- `POST /api/projects/:projectId/objectives` - 创建项目目标
+- `GET /api/objectives/:id` - 获取目标详情
 - `PUT /api/objectives/:id` - 更新目标
 - `DELETE /api/objectives/:id` - 删除目标
-- `POST /api/objectives/:objectiveId/key-results` - 创建关键结果
+- `POST /api/key-results` - 创建关键结果
 - `PUT /api/key-results/:id` - 更新关键结果
 - `DELETE /api/key-results/:id` - 删除关键结果
+- `POST /api/key-result-updates` - 新增关键结果更新记录
+- `POST /api/resource-requirements` - 创建资源需求
+- `PUT /api/resource-requirements/:id` - 更新资源需求
+- `DELETE /api/resource-requirements/:id` - 删除资源需求
+- `POST /api/execution-plans` - 创建执行计划
+- `PUT /api/execution-plans/:id` - 更新执行计划
+- `DELETE /api/execution-plans/:id` - 删除执行计划
+- `POST /api/action-checks` - 创建行动检查
+- `PUT /api/action-checks/:id` - 更新行动检查
+- `DELETE /api/action-checks/:id` - 删除行动检查
 
 ### 分类接口
 - `GET /api/categories` - 获取分类列表
@@ -399,12 +428,19 @@ VITE_API_URL=http://localhost:5000/api
 - `DELETE /api/categories/:id` - 删除分类
 
 ### 统计接口
-- `GET /api/stats/tasks` - 获取任务统计
-- `GET /api/stats/quadrants` - 获取四象限统计
-- `GET /api/stats/categories` - 获取分类统计
-- `GET /api/stats/projects` - 获取项目统计 🆕
+- `GET /api/stats/stats` - 获取任务统计
+- `GET /api/stats/quadrant-stats` - 获取四象限统计
+- `GET /api/stats/category-stats` - 获取分类统计
+- `GET /api/stats/project-stats` - 获取项目统计 🆕
+- `GET /api/stats/project-task-stats` - 获取项目任务统计 🆕
+- `GET /api/stats/task-duration-ranking` - 获取任务耗时排行 🆕
 - `GET /api/stats/time-series` - 获取时间序列数据
 - `GET /api/stats/time-series-year` - 获取年度热力图数据
+
+### 文件上传接口
+- `POST /api/upload/image` - 上传图片（表单字段名：`image`）
+- `DELETE /api/upload/image/:filename` - 删除图片
+- `GET /api/uploads/:filename` - 访问已上传图片（静态文件）
 
 ## 🎯 使用指南
 
@@ -578,7 +614,7 @@ VITE_API_URL=http://localhost:5000/api
 
 ### 架构优化
 - 清理和优化后端服务代码
-- 移除个性化标签系统，简化架构
+- 优化个性化标签系统（本地存储），简化交互
 - 改进前端状态管理和组件结构
 - 优化数据库查询和性能
 - 完善的文档和架构说明

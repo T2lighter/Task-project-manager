@@ -42,11 +42,12 @@ export const sortTasksByPriority = (tasks: Task[]): Task[] => {
 // 按状态排序任务（用于四象限）
 export const sortTasksByStatus = (tasks: Task[]): Task[] => {
   return tasks.sort((a, b) => {
-    // 定义状态权重：进行中(2) > 代办(1)
+    // 定义状态权重：处理中(3) > 代办(2) > 被阻塞(1)
     const getStatusWeight = (task: Task) => {
-      if (task.status === 'in-progress') return 2;
-      if (task.status === 'pending') return 1;
-      return 0;
+      if (task.status === 'in-progress') return 3;
+      if (task.status === 'pending') return 2;
+      if (task.status === 'blocked') return 1;
+      return 2;
     };
 
     const weightA = getStatusWeight(a);

@@ -10,7 +10,7 @@ interface ProjectTaskStatsChartProps {
 const ProjectTaskStatsChart: React.FC<ProjectTaskStatsChartProps> = ({ 
   data, 
   onProjectClick, 
-  selectedStatus = 'active' // 默认显示进行中的项目
+  selectedStatus = 'active' // 默认显示处理中的项目
 }) => {
   // 根据选中的状态筛选项目
   const filteredData = selectedStatus ? data.filter(project => project.projectStatus === selectedStatus) : data;
@@ -18,7 +18,7 @@ const ProjectTaskStatsChart: React.FC<ProjectTaskStatsChartProps> = ({
   // 获取状态对应的中文名称
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'active': return '进行中';
+      case 'active': return '处理中';
       case 'completed': return '已完成';
       case 'planning': return '规划中';
       case 'on-hold': return '暂停';
@@ -38,7 +38,7 @@ const ProjectTaskStatsChart: React.FC<ProjectTaskStatsChartProps> = ({
           </h4>
           <p className="text-gray-600 mb-4">
             {selectedStatus === 'active' 
-              ? '当前没有进行中的项目，或项目中还没有添加任务'
+              ? '当前没有处理中的项目，或项目中还没有添加任务'
               : `当前没有${getStatusText(selectedStatus)}状态的项目任务数据`
             }
           </p>
@@ -152,7 +152,7 @@ const ProjectTaskStatsChart: React.FC<ProjectTaskStatsChartProps> = ({
                       {project.completedTasks}/{project.totalTasks}
                     </div>
                     {project.completionRate === 100 && (
-                      <div className="text-xs text-green-600 font-medium">已完成</div>
+                      <div className="text-xs text-green-600 font-medium">✅ 已完成</div>
                     )}
                   </>
                 )}
@@ -186,7 +186,12 @@ const ProjectTaskStatsChart: React.FC<ProjectTaskStatsChartProps> = ({
                 )}
                 {project.inProgressTasks > 0 && (
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
-                    🔄 进行中 {project.inProgressTasks}
+                    🔄 处理中 {project.inProgressTasks}
+                  </span>
+                )}
+                {project.blockedTasks > 0 && (
+                  <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-medium">
+                    ⏸️ 阻塞 {project.blockedTasks}
                   </span>
                 )}
                 {project.pendingTasks > 0 && (
@@ -218,7 +223,7 @@ const ProjectTaskStatsChart: React.FC<ProjectTaskStatsChartProps> = ({
                   ) : project.completionRate >= 80 ? (
                     <span className="text-xs text-blue-600 font-medium">🎯 进展良好</span>
                   ) : project.completionRate >= 50 ? (
-                    <span className="text-xs text-yellow-600 font-medium">⏳ 进行中</span>
+                    <span className="text-xs text-yellow-600 font-medium">⏳ 处理中</span>
                   ) : (
                     <span className="text-xs text-gray-600 font-medium">🚀 刚开始</span>
                   )}

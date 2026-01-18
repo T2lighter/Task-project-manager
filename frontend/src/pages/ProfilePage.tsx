@@ -57,7 +57,7 @@ const ProfilePage: React.FC = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // 项目状态筛选状态
-  const [selectedProjectStatus, setSelectedProjectStatus] = useState<string>('active'); // 默认显示进行中的项目
+  const [selectedProjectStatus, setSelectedProjectStatus] = useState<string>('active'); // 默认显示处理中的项目
   
   // 名言状态
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -340,9 +340,9 @@ const ProfilePage: React.FC = () => {
         if (primaryTask.project) {
           messageData.projects = [primaryTask.project];
         }
-        messageData.text = `正在进行中，继续保持专注`;
+        messageData.text = `正在处理中，继续保持专注`;
       } else {
-        messageData.text = `今天有${inProgressTasks.length}项任务正在进行中，稳步推进`;
+        messageData.text = `今天有${inProgressTasks.length}项任务正在处理中，稳步推进`;
         messageData.tasks = [];
         messageData.projects = [];
       }
@@ -552,7 +552,7 @@ const ProfilePage: React.FC = () => {
                   taskList={inProgressTaskList}
                   color="bg-blue-100 text-blue-800 border-blue-200 hover:border-blue-300" 
                   filter="in-progress"
-                  label="进行中任务"
+                  label="处理中任务"
                 />
               )}
               <span className="text-gray-600">个任务</span>
@@ -564,12 +564,12 @@ const ProfilePage: React.FC = () => {
                     projectList={inProgressProjectList}
                     color="bg-blue-100 text-blue-800 border-blue-200 hover:border-blue-300" 
                     filter="in-progress"
-                    label="进行中项目"
+                    label="处理中项目"
                   />
                   <span className="text-gray-600">个项目</span>
                 </>
               )}
-              <span className="text-gray-600">在进行中</span>
+              <span className="text-gray-600">在处理中</span>
               {hasPending && <span className="text-gray-600">，</span>}
             </>
           )}
@@ -682,13 +682,13 @@ const ProfilePage: React.FC = () => {
             </div>
           </div>
         );
-      } else if (text.includes('正在进行中')) {
+      } else if (text.includes('正在处理中')) {
         return (
           <div>
             {renderTaskOverview()}
             <div className="text-base leading-relaxed">
               <TaskLink />
-              正在进行中，继续保持专注
+              正在处理中，继续保持专注
               {projects.length > 0 && (
                 <>
                   {' '}(项目: <ProjectLink project={projects[0]} />)
@@ -765,8 +765,8 @@ const ProfilePage: React.FC = () => {
         {/* 装饰性背景元素 */}
         <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full -translate-y-8 translate-x-8"></div>
         <div className="absolute bottom-0 left-0 w-12 h-12 bg-gradient-to-tr from-orange-200/20 to-purple-200/20 rounded-full translate-y-6 -translate-x-6"></div>
-        <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-purple-300/40 rounded-full"></div>
-        <div className="absolute top-1/4 right-1/3 w-0.5 h-0.5 bg-pink-400/50 rounded-full"></div>
+        <div className="absolute top-1/3 right-1/4 w-2 h-2 bg-purple-300/40 rounded-full"></div>
+        <div className="absolute top-1/4 right-1/3 w-1 h-1 bg-pink-400/50 rounded-full"></div>
         
         <div className="relative flex flex-col h-full">
           <div className="flex items-center gap-2 mb-3">
@@ -845,7 +845,7 @@ const ProfilePage: React.FC = () => {
     new Date(project.endDate) < now
   );
   
-  // 计算进行中项目列表和数量（active状态对应进行中）
+  // 计算处理中项目列表和数量（active状态对应处理中）
   const inProgressProjectList = allProjects.filter(project => project.status === 'active');
   
   // 计算待办项目列表和数量（planning状态对应待办）
@@ -1021,7 +1021,7 @@ const ProfilePage: React.FC = () => {
           onClick={() => navigate('/tasks', { state: { viewMode: 'kanban' } })}
         />
         <StatsCard
-          title="进行中"
+          title="处理中"
           value={inProgressTasks}
           color="blue"
           onClick={() => navigate('/tasks', { state: { viewMode: 'kanban' } })}

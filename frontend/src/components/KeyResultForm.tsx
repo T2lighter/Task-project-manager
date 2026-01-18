@@ -137,7 +137,7 @@ const KeyResultForm: React.FC<KeyResultFormProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="not-started">⏸️ 未开始</option>
-            <option value="in-progress">🔄 进行中</option>
+            <option value="in-progress">🔄 处理中</option>
             <option value="completed">✅ 已完成</option>
             <option value="at-risk">⚠️ 有风险</option>
           </select>

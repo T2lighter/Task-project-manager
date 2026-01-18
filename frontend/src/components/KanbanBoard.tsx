@@ -6,12 +6,12 @@ import { getTaskStatusColors } from '../utils/colorUtils'; // 新增：统一颜
 
 interface KanbanColumnProps {
   title: string;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: 'pending' | 'in-progress' | 'blocked' | 'completed';
   tasks: Task[];
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void; // 修改为接收Task对象
   onCopyTask?: (task: Task) => void; // 新增：复制任务
-  onDropTask: (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => void;
+  onDropTask: (task: Task, newStatus: 'pending' | 'in-progress' | 'blocked' | 'completed') => void;
   onDragStart: (task: Task) => void;
   onCreateSubtask?: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => void; // 新增
 }
@@ -83,7 +83,7 @@ interface KanbanBoardProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void; // 修改为接收Task对象
   onCopyTask?: (task: Task) => void; // 新增：复制任务
-  onDropTask: (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => void;
+  onDropTask: (task: Task, newStatus: 'pending' | 'in-progress' | 'blocked' | 'completed') => void;
   onDragStart: (task: Task) => void;
   onCreateSubtask?: (parentTaskId: number, subtaskData: Omit<Task, 'id' | 'userId'>) => void; // 新增
 }
@@ -126,10 +126,11 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   // 按状态分类任务并排序
   const pendingTasks = sortTasksByPriority(tasks.filter(task => task.status === 'pending'));
   const inProgressTasks = sortTasksByPriority(tasks.filter(task => task.status === 'in-progress'));
+  const blockedTasks = sortTasksByPriority(tasks.filter(task => task.status === 'blocked'));
   const completedTasks = sortTasksByPriority(tasks.filter(task => task.status === 'completed'));
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
       <KanbanColumn
         title="待办"
         status="pending"
@@ -142,9 +143,20 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onCreateSubtask={onCreateSubtask}
       />
       <KanbanColumn
-        title="进行中"
+        title="处理中"
         status="in-progress"
         tasks={inProgressTasks}
+        onEditTask={onEditTask}
+        onDeleteTask={onDeleteTask}
+        onCopyTask={onCopyTask}
+        onDropTask={onDropTask}
+        onDragStart={onDragStart}
+        onCreateSubtask={onCreateSubtask}
+      />
+      <KanbanColumn
+        title="阻塞"
+        status="blocked"
+        tasks={blockedTasks}
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
         onCopyTask={onCopyTask}

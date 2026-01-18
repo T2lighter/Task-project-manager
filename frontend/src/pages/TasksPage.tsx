@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios, { AxiosError } from 'axios';
 import { useLocation } from 'react-router-dom';
 import Quadrant from '../components/Quadrant';
 import KanbanBoard from '../components/KanbanBoard';
@@ -11,10 +12,27 @@ import { useTaskStore } from '../store/taskStore';
 import { useLabelStore } from '../store/labelStore';
 import { Task } from '../types';
 import { isTaskOverdue, isTaskDueToday, isTaskDueThisWeek } from '../utils/taskUtils';
+import { TASK_TYPE } from '../constants';
 import { UI_COLORS } from '../utils/colorUtils'; // 新增：统一颜色配置
 import { CARD_STYLES, getCardStyle, combineStyles, getCardHover, getCardShadow } from '../utils/cardStyles';
 
 const TasksPage: React.FC = () => {
+  const getApiErrorMessage = (error: unknown, fallbackMessage: string) => {
+    if (axios.isAxiosError(error)) {
+      const axiosError = error as AxiosError<{ message?: unknown }>;
+      const message = axiosError.response?.data?.message;
+      if (typeof message === 'string' && message.trim().length > 0) {
+        return message;
+      }
+    }
+
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    return fallbackMessage;
+  };
+
   const { tasks, fetchTasks, createTask, updateTask, deleteTask, batchDeleteTasks, createSubtask, copyTask } = useTaskStore();
   const { 
     labels, 
@@ -31,8 +49,10 @@ const TasksPage: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [taskFormKey, setTaskFormKey] = useState(0); // 表单key，用于强制TaskForm组件重新挂载，确保每次新建任务时表单状态完全重置
-  const [filter, setFilter] = useState<'all' | 'overdue' | 'due-today' | 'this-week'>('all');
+  const [filter, setFilter] = useState<'all' | 'overdue' | 'due-today' | 'this-week' | 'pending' | 'in-progress' | 'blocked' | 'completed'>('all');
   const [viewMode, setViewMode] = useState<'quadrant' | 'kanban' | 'personalized'>('quadrant'); // 新增：个性化视图
+  const [typeFilter, setTypeFilter] = useState<'normal' | 'long-term' | 'deferred' | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<'verbal' | 'email' | 'im' | null>(null);
   const [searchQuery, setSearchQuery] = useState(''); // 新增：搜索查询状态
   const [showLabelManager, setShowLabelManager] = useState(false); // 新增：标签管理对话框状态
   
@@ -42,6 +62,8 @@ const TasksPage: React.FC = () => {
   
   // 新增：任务列表拖拽状态
   const [isDragOverTaskList, setIsDragOverTaskList] = useState(false);
+
+  const [isTaskListExpanded, setIsTaskListExpanded] = useState(true);
 
   // 批量删除相关状态
   const [isBatchDeleteMode, setIsBatchDeleteMode] = useState(false);
@@ -82,7 +104,7 @@ const TasksPage: React.FC = () => {
   // 从location.state中获取筛选条件并应用
   React.useEffect(() => {
     const filterState = location.state?.filter;
-    if (filterState && ['all', 'overdue', 'due-today', 'this-week'].includes(filterState)) {
+    if (filterState && ['all', 'overdue', 'due-today', 'this-week', 'pending', 'in-progress', 'blocked', 'completed'].includes(filterState)) {
       setFilter(filterState);
     }
   }, [location.state]);
@@ -133,7 +155,7 @@ const TasksPage: React.FC = () => {
       setIsFormOpen(false);
     } catch (error) {
       console.error('创建任务失败:', error);
-      alert('创建任务失败，请重试');
+      alert(getApiErrorMessage(error, '创建任务失败，请重试'));
     }
   };
 
@@ -371,7 +393,7 @@ const TasksPage: React.FC = () => {
   };
 
   // 看板模式的拖拽处理函数
-  const handleKanbanDropTask = async (task: Task, newStatus: 'pending' | 'in-progress' | 'completed') => {
+  const handleKanbanDropTask = async (task: Task, newStatus: 'pending' | 'in-progress' | 'blocked' | 'completed') => {
     // 验证任务数据完整性
     if (!task || !task.id) {
       console.error('无效的任务数据:', task);
@@ -406,10 +428,11 @@ const TasksPage: React.FC = () => {
   // 四象限任务状态排序函数
   const sortTasksByStatus = (tasks: Task[]) => {
     return tasks.sort((a, b) => {
-      // 定义状态权重：进行中(2) > 代办(1)
+      // 定义状态权重：处理中(2) > 代办(1)
       const getStatusWeight = (task: Task) => {
-        if (task.status === 'in-progress') return 2; // 进行中
-        if (task.status === 'pending') return 1; // 代办
+        if (task.status === 'in-progress') return 3; // 处理中
+        if (task.status === 'pending') return 2; // 代办
+        if (task.status === 'blocked') return 1; // 阻塞
         return 0; // 其他状态
       };
 
@@ -450,7 +473,8 @@ const TasksPage: React.FC = () => {
       const statusMatch = (() => {
         const statusNames = {
           'pending': '待办',
-          'in-progress': '进行中',
+          'in-progress': '处理中',
+          'blocked': '阻塞',
           'completed': '已完成'
         };
         const statusName = statusNames[task.status as keyof typeof statusNames];
@@ -527,6 +551,14 @@ const TasksPage: React.FC = () => {
       // 首先排除子任务
       if (task.parentTaskId) return false;
 
+      if (sourceFilter) {
+        return (task.source || 'verbal') === sourceFilter;
+      }
+
+      if (typeFilter) {
+        return task.type === typeFilter;
+      }
+
       switch (filter) {
         case 'overdue':
           return isTaskOverdue(task);
@@ -534,6 +566,11 @@ const TasksPage: React.FC = () => {
           return isTaskDueToday(task);
         case 'this-week':
           return isTaskDueThisWeek(task);
+        case 'pending':
+        case 'in-progress':
+        case 'blocked':
+        case 'completed':
+          return task.status === filter;
         default:
           // 全部任务：包含所有任务（包括已完成的，但会在排序中处理顺序）
           return true;
@@ -560,6 +597,14 @@ const TasksPage: React.FC = () => {
     }
   };
 
+  const getTypeCount = (type: 'normal' | 'long-term' | 'deferred') => {
+    return tasks.filter(task => !task.parentTaskId && task.type === type).length;
+  };
+
+  const getSourceCount = (source: 'verbal' | 'email' | 'im') => {
+    return tasks.filter(task => !task.parentTaskId && (task.source || 'verbal') === source).length;
+  };
+
   return (
     <div className={CARD_STYLES.spacing.spaceY2}>
       {/* 隐藏原有的h1和span，将按钮移到适当位置 */}
@@ -584,11 +629,32 @@ const TasksPage: React.FC = () => {
       {/* 左右布局 */}
       <div className={getCardStyle('grid', 'main')}>
         {/* 左侧：任务列表 */}
-        <div className={getCardStyle('grid', 'leftCol')}>
+        <div className={combineStyles(
+          getCardStyle('grid', 'leftCol'),
+          getCardStyle('animation', 'transition'),
+          !isTaskListExpanded ? 'hidden' : ''
+        )}>
           <div className={getCardStyle('container')}>
             {/* 标题行：任务列表 + 搜索框 + 添加任务按钮 + 删除按钮 */}
             <div className={getCardStyle('flex', 'rowCenter') + ' ' + CARD_STYLES.spacing.section}>
-              <h2 className={`${CARD_STYLES.text.large} ${CARD_STYLES.text.semibold} ${UI_COLORS.grayText800} ${CARD_STYLES.layout.flexShrink0}`}>任务列表</h2>
+              <button
+                type="button"
+                onClick={() => setIsTaskListExpanded(prev => !prev)}
+                className={combineStyles(
+                  `${CARD_STYLES.text.large} ${CARD_STYLES.text.semibold} ${UI_COLORS.grayText800}`,
+                  CARD_STYLES.layout.flexShrink0,
+                  CARD_STYLES.interactive.cursorPointer,
+                  'bg-transparent p-0 border-0 text-left'
+                )}
+                aria-expanded={isTaskListExpanded}
+                aria-controls="task-list-container"
+                title={isTaskListExpanded ? '点击收起任务列表' : '点击展开任务列表'}
+              >
+                任务列表
+              </button>
+
+              {isTaskListExpanded && (
+                <>
               
               {/* 搜索框 */}
               <div className={getCardStyle('searchBox', 'container')}>
@@ -664,8 +730,13 @@ const TasksPage: React.FC = () => {
                   取消
                 </button>
               )}
+                </>
+              )}
             </div>
-            
+
+            {isTaskListExpanded && (
+              <>
+
             {/* 搜索结果提示 */}
             {searchQuery && (
               <div className={combineStyles(
@@ -720,7 +791,11 @@ const TasksPage: React.FC = () => {
             {/* 筛选按钮 */}
             <div className={combineStyles(getCardStyle('flex', 'wrap'), CARD_STYLES.spacing.section)}>
               <button
-                onClick={() => setFilter('all')}
+                onClick={() => {
+                  setFilter('all');
+                  setTypeFilter(null);
+                  setSourceFilter(null);
+                }}
                 className={combineStyles(
                   getCardStyle('tag'),
                   filter === 'all' ? `${UI_COLORS.primary.bgLight} ${UI_COLORS.primary.text} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
@@ -729,7 +804,11 @@ const TasksPage: React.FC = () => {
                 全部 ({getTaskCount('all')})
               </button>
               <button
-                onClick={() => setFilter('overdue')}
+                onClick={() => {
+                  setFilter('overdue');
+                  setTypeFilter(null);
+                  setSourceFilter(null);
+                }}
                 className={combineStyles(
                   getCardStyle('tag'),
                   filter === 'overdue' ? `${UI_COLORS.danger.bgLight} ${UI_COLORS.danger.text} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
@@ -738,7 +817,11 @@ const TasksPage: React.FC = () => {
                 逾期 ({getTaskCount('overdue')})
               </button>
               <button
-                onClick={() => setFilter('due-today')}
+                onClick={() => {
+                  setFilter('due-today');
+                  setTypeFilter(null);
+                  setSourceFilter(null);
+                }}
                 className={combineStyles(
                   getCardStyle('tag'),
                   filter === 'due-today' ? `${UI_COLORS.warning.bgLight} ${UI_COLORS.warning.text} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
@@ -747,7 +830,11 @@ const TasksPage: React.FC = () => {
                 今日 ({getTaskCount('due-today')})
               </button>
               <button
-                onClick={() => setFilter('this-week')}
+                onClick={() => {
+                  setFilter('this-week');
+                  setTypeFilter(null);
+                  setSourceFilter(null);
+                }}
                 className={combineStyles(
                   getCardStyle('tag'),
                   filter === 'this-week' ? `${UI_COLORS.primary.bgLight} ${UI_COLORS.primary.text} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
@@ -755,10 +842,107 @@ const TasksPage: React.FC = () => {
               >
                 本周 ({getTaskCount('this-week')})
               </button>
+              <button
+                onClick={() => {
+                  const nextType = typeFilter === 'normal' ? null : 'normal';
+                  setTypeFilter(nextType);
+                  if (nextType) {
+                    setFilter('all');
+                    setSourceFilter(null);
+                  }
+                }}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  typeFilter === 'normal' ? `${UI_COLORS.blue50} ${UI_COLORS.blueText700} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
+              >
+                普通 ({getTypeCount(TASK_TYPE.NORMAL)})
+              </button>
+              <button
+                onClick={() => {
+                  const nextType = typeFilter === 'long-term' ? null : 'long-term';
+                  setTypeFilter(nextType);
+                  if (nextType) {
+                    setFilter('all');
+                    setSourceFilter(null);
+                  }
+                }}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  typeFilter === 'long-term' ? `${UI_COLORS.blue50} ${UI_COLORS.blueText700} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
+              >
+                长期 ({getTypeCount(TASK_TYPE.LONG_TERM)})
+              </button>
+              <button
+                onClick={() => {
+                  const nextType = typeFilter === 'deferred' ? null : 'deferred';
+                  setTypeFilter(nextType);
+                  if (nextType) {
+                    setFilter('all');
+                    setSourceFilter(null);
+                  }
+                }}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  typeFilter === 'deferred' ? `${UI_COLORS.blue50} ${UI_COLORS.blueText700} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
+              >
+                暂缓 ({getTypeCount(TASK_TYPE.DEFERRED)})
+              </button>
+              <button
+                onClick={() => {
+                  const nextSource = sourceFilter === 'verbal' ? null : 'verbal';
+                  setSourceFilter(nextSource);
+                  if (nextSource) {
+                    setFilter('all');
+                    setTypeFilter(null);
+                  }
+                }}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  sourceFilter === 'verbal' ? `${UI_COLORS.green100} ${UI_COLORS.greenText700} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
+              >
+                口头 ({getSourceCount('verbal')})
+              </button>
+              <button
+                onClick={() => {
+                  const nextSource = sourceFilter === 'email' ? null : 'email';
+                  setSourceFilter(nextSource);
+                  if (nextSource) {
+                    setFilter('all');
+                    setTypeFilter(null);
+                  }
+                }}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  sourceFilter === 'email' ? `${UI_COLORS.green100} ${UI_COLORS.greenText700} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
+              >
+                邮件 ({getSourceCount('email')})
+              </button>
+              <button
+                onClick={() => {
+                  const nextSource = sourceFilter === 'im' ? null : 'im';
+                  setSourceFilter(nextSource);
+                  if (nextSource) {
+                    setFilter('all');
+                    setTypeFilter(null);
+                  }
+                }}
+                className={combineStyles(
+                  getCardStyle('tag'),
+                  sourceFilter === 'im' ? `${UI_COLORS.green100} ${UI_COLORS.greenText700} ${CARD_STYLES.text.medium}` : `${UI_COLORS.gray100} ${UI_COLORS.grayText600} ${UI_COLORS.grayHover200}`
+                )}
+              >
+                通讯 ({getSourceCount('im')})
+              </button>
             </div>
             
             {/* 任务列表 */}
             <div 
+              id="task-list-container"
               className={combineStyles(
                 getCardStyle('taskList', 'container'),
                 isDragOverTaskList 
@@ -838,50 +1022,80 @@ const TasksPage: React.FC = () => {
                 ))
               )}
             </div>
+
+              </>
+            )}
           </div>
         </div>
 
         {/* 右侧：视图区域 */}
-        <div className={getCardStyle('grid', 'rightCol')}>
+        <div className={combineStyles(
+          getCardStyle('grid', 'rightCol'),
+          getCardStyle('animation', 'transition'),
+          !isTaskListExpanded ? 'lg:col-span-10' : ''
+        )}>
           {/* 视图切换按钮 */}
           <div className={combineStyles(getCardStyle('flex', 'rowBetween'), CARD_STYLES.spacing.section)}>
-            <div className={combineStyles(
-              `${UI_COLORS.gray50} ${UI_COLORS.grayBorder200}`,
-              getCardStyle('viewToggle', 'container')
-            )}>
-              <button
-                onClick={() => setViewMode('quadrant')}
-                className={combineStyles(
-                  getCardStyle('viewToggle', 'button'),
-                  viewMode === 'quadrant'
-                    ? UI_COLORS.viewModeActive
-                    : UI_COLORS.viewModeInactive
-                )}
-              >
-                四象限展示
-              </button>
-              <button
-                onClick={() => setViewMode('kanban')}
-                className={combineStyles(
-                  getCardStyle('viewToggle', 'button'),
-                  viewMode === 'kanban'
-                    ? UI_COLORS.viewModeActive
-                    : UI_COLORS.viewModeInactive
-                )}
-              >
-                看板展示
-              </button>
-              <button
-                onClick={() => setViewMode('personalized')}
-                className={combineStyles(
-                  getCardStyle('viewToggle', 'button'),
-                  viewMode === 'personalized'
-                    ? UI_COLORS.viewModeActive
-                    : UI_COLORS.viewModeInactive
-                )}
-              >
-                个性化展示
-              </button>
+            <div className={getCardStyle('flex', 'rowCenter')}>
+              {!isTaskListExpanded && (
+                <div className={combineStyles(
+                  `${UI_COLORS.gray50} ${UI_COLORS.grayBorder200}`,
+                  getCardStyle('viewToggle', 'container')
+                )}>
+                  <button
+                    type="button"
+                    onClick={() => setIsTaskListExpanded(true)}
+                    className={combineStyles(
+                      getCardStyle('viewToggle', 'button'),
+                      UI_COLORS.viewModeInactive
+                    )}
+                    aria-expanded={false}
+                    aria-controls="task-list-container"
+                    title="展开任务列表"
+                  >
+                    任务列表
+                  </button>
+                </div>
+              )}
+
+              <div className={combineStyles(
+                `${UI_COLORS.gray50} ${UI_COLORS.grayBorder200}`,
+                getCardStyle('viewToggle', 'container')
+              )}>
+                <button
+                  onClick={() => setViewMode('quadrant')}
+                  className={combineStyles(
+                    getCardStyle('viewToggle', 'button'),
+                    viewMode === 'quadrant'
+                      ? UI_COLORS.viewModeActive
+                      : UI_COLORS.viewModeInactive
+                  )}
+                >
+                  四象限展示
+                </button>
+                <button
+                  onClick={() => setViewMode('kanban')}
+                  className={combineStyles(
+                    getCardStyle('viewToggle', 'button'),
+                    viewMode === 'kanban'
+                      ? UI_COLORS.viewModeActive
+                      : UI_COLORS.viewModeInactive
+                  )}
+                >
+                  看板展示
+                </button>
+                <button
+                  onClick={() => setViewMode('personalized')}
+                  className={combineStyles(
+                    getCardStyle('viewToggle', 'button'),
+                    viewMode === 'personalized'
+                      ? UI_COLORS.viewModeActive
+                      : UI_COLORS.viewModeInactive
+                  )}
+                >
+                  个性化展示
+                </button>
+              </div>
             </div>
             
             {/* 标签管理按钮 */}

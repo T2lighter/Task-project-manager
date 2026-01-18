@@ -26,7 +26,7 @@ const ProjectDetailPage: React.FC = () => {
   const [isTaskSelectorOpen, setIsTaskSelectorOpen] = useState(false); // 新增：任务选择器状态
   const [isRemoveTaskSelectorOpen, setIsRemoveTaskSelectorOpen] = useState(false); // 新增：移除任务选择器状态
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'blocked' | 'completed'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'gantt'>('list'); // 新增：视图模式状态
   const [activeTab, setActiveTab] = useState<'tasks' | 'okr' | 'notes'>('tasks'); // 新增：标签页状态
   
@@ -77,6 +77,8 @@ const ProjectDetailPage: React.FC = () => {
         return task.status === 'pending';
       case 'in-progress':
         return task.status === 'in-progress';
+      case 'blocked':
+        return task.status === 'blocked';
       case 'completed':
         return task.status === 'completed';
       default:
@@ -274,6 +276,8 @@ const ProjectDetailPage: React.FC = () => {
         return projectTasks.filter(t => t.status === 'pending').length;
       case 'in-progress':
         return projectTasks.filter(t => t.status === 'in-progress').length;
+      case 'blocked':
+        return projectTasks.filter(t => t.status === 'blocked').length;
       case 'completed':
         return projectTasks.filter(t => t.status === 'completed').length;
       default:
@@ -292,7 +296,7 @@ const ProjectDetailPage: React.FC = () => {
       case 'planning':
         return { color: 'bg-gray-100 text-gray-800', icon: '📋', text: '规划中' };
       case 'active':
-        return { color: 'bg-blue-100 text-blue-800', icon: '🚀', text: '进行中' };
+        return { color: 'bg-blue-100 text-blue-800', icon: '🚀', text: '处理中' };
       case 'completed':
         return { color: 'bg-green-100 text-green-800', icon: '✅', text: '已完成' };
       case 'on-hold':
@@ -524,7 +528,17 @@ const ProjectDetailPage: React.FC = () => {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  进行中 ({getTaskCount('in-progress')})
+                  处理中 ({getTaskCount('in-progress')})
+                </button>
+                <button
+                  onClick={() => setFilter('blocked')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    filter === 'blocked' 
+                      ? 'bg-purple-100 text-purple-800' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  阻塞 ({getTaskCount('blocked')})
                 </button>
                 <button
                   onClick={() => setFilter('completed')}
@@ -550,8 +564,9 @@ const ProjectDetailPage: React.FC = () => {
               <div className="text-center py-8">
                 <div className="text-gray-400 text-4xl mb-4">📝</div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {filter === 'all' ? '还没有任务' : `没有${filter === 'pending' ? '待办' : filter === 'in-progress' ? '进行中' : '已完成'}的任务`}
+                  {filter === 'all' ? '还没有任务' : `没有${filter === 'pending' ? '待办' : filter === 'in-progress' ? '处理中' : filter === 'blocked' ? '阻塞' : '已完成'}的任务`}
                 </h3>
+
                 <p className="text-gray-600 mb-4">
                   {filter === 'all' ? '为这个项目添加第一个任务' : '切换到其他筛选条件查看任务'}
                 </p>

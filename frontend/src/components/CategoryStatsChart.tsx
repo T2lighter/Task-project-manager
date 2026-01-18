@@ -57,7 +57,8 @@ const CategoryStatsChart: React.FC<CategoryStatsChartProps> = ({ data }) => {
           <Tooltip content={<CustomTooltip />} />
           <Legend />
           <Bar dataKey="completed" fill="#10B981" name="已完成" />
-          <Bar dataKey="inProgress" fill="#3B82F6" name="进行中" />
+          <Bar dataKey="inProgress" fill="#3B82F6" name="处理中" />
+          <Bar dataKey="blocked" fill="#A855F7" name="阻塞" />
           <Bar dataKey="pending" fill="#F59E0B" name="待办" />
         </BarChart>
       </ResponsiveContainer>

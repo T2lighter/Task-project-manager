@@ -10,6 +10,7 @@ interface TaskStatusPieChartProps {
 const COLORS = {
   completed: '#10B981', // green-500
   inProgress: '#3B82F6', // blue-500
+  blocked: '#A855F7', // purple-500
   pending: '#F59E0B', // amber-500
   overdue: '#EF4444', // red-500
 };
@@ -19,7 +20,8 @@ const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatus
   
   const data = [
     { name: '已完成', value: stats.completed, color: COLORS.completed, key: 'completed' },
-    { name: '进行中', value: stats.inProgress, color: COLORS.inProgress, key: 'inProgress' },
+    { name: '处理中', value: stats.inProgress, color: COLORS.inProgress, key: 'in-progress' },
+    { name: '阻塞', value: stats.blocked, color: COLORS.blocked, key: 'blocked' },
     { name: '待办', value: stats.pending, color: COLORS.pending, key: 'pending' },
     { name: '逾期', value: stats.overdue, color: COLORS.overdue, key: 'overdue' },
   ].filter(item => item.value > 0);
@@ -63,44 +65,44 @@ const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatus
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-base font-semibold text-gray-800">任务状态分布</h3>
         <span className="text-sm text-gray-600">{stats.total} 总任务</span>
-        </div>
+      </div>
       
       <div className="flex-1 flex items-center">
         <div className="flex-1 relative">
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={data}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={85}
-                      paddingAngle={2}
-                      dataKey="value"
-                      animationBegin={0}
-                      animationDuration={600}
-                      onMouseEnter={(_, index) => setActiveIndex(index)}
-                      onMouseLeave={() => setActiveIndex(null)}
-                    >
-                      {data.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.color} 
-                          stroke="white" 
-                          strokeWidth={1}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={85}
+                paddingAngle={2}
+                dataKey="value"
+                animationBegin={0}
+                animationDuration={600}
+                onMouseEnter={(_, index) => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex(null)}
+              >
+                {data.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.color} 
+                    stroke="white" 
+                    strokeWidth={1}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
           {/* 中心显示总数 */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-                    <div className="text-xs text-gray-500">总任务</div>
-                  </div>
-                </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+              <div className="text-xs text-gray-500">总任务</div>
+            </div>
+          </div>
         </div>
         
         {/* 右侧图例 */}
@@ -118,7 +120,8 @@ const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatus
                 <div className="flex items-center justify-between mb-1">
                   <div className={`font-semibold text-sm ${
                     item.key === 'completed' ? 'text-green-600' :
-                    item.key === 'in_progress' ? 'text-blue-600' :
+                    item.key === 'in-progress' ? 'text-blue-600' :
+                    item.key === 'blocked' ? 'text-purple-600' :
                     item.key === 'pending' ? 'text-yellow-600' :
                     'text-gray-600'
                   }`}>
@@ -126,7 +129,8 @@ const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatus
                   </div>
                   <div className={`text-sm font-semibold ${
                     item.key === 'completed' ? 'text-green-500' :
-                    item.key === 'in_progress' ? 'text-blue-500' :
+                    item.key === 'in-progress' ? 'text-blue-500' :
+                    item.key === 'blocked' ? 'text-purple-500' :
                     item.key === 'pending' ? 'text-yellow-500' :
                     'text-gray-500'
                   }`}>

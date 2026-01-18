@@ -4,7 +4,7 @@ import { useProjectStore } from '../store/projectStore';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
 import RichTextEditor from './RichTextEditor';
-import { TASK_SOURCE_OPTIONS } from '../constants';
+import { TASK_SOURCE_OPTIONS, TASK_TYPE_OPTIONS } from '../constants';
 
 interface TaskFormProps {
   task: Task | null;
@@ -35,9 +35,10 @@ const TaskForm: React.FC<TaskFormProps> = ({
     title: '',
     description: '',
     status: 'pending' as Task['status'],
+    type: 'normal' as Task['type'],
     urgency: false,
     importance: false,
-    source: '' as Task['source'] | '', // 任务来源
+    source: 'verbal' as Task['source'], // 任务来源
     dueDate: '',
     createdAt: '', // 新增：创建时间字段
     categoryId: undefined as number | undefined,
@@ -69,9 +70,10 @@ const TaskForm: React.FC<TaskFormProps> = ({
         title: task.title,
         description: task.description || '',
         status: task.status,
+        type: task.type || 'normal',
         urgency: task.urgency,
         importance: task.importance,
-        source: task.source || '',
+        source: task.source || 'verbal',
         dueDate: taskDueDate || taskCreatedAt,
         createdAt: taskCreatedAt,
         categoryId: task.categoryId,
@@ -86,9 +88,10 @@ const TaskForm: React.FC<TaskFormProps> = ({
         title: '',
         description: '',
         status: 'pending' as Task['status'],
+        type: 'normal' as Task['type'],
         urgency: false,
         importance: false,
-        source: '',
+        source: 'verbal',
         dueDate: defaultDueDateFormatted,
         createdAt: defaultCreatedAtFormatted,
         categoryId: undefined as number | undefined,
@@ -102,9 +105,19 @@ const TaskForm: React.FC<TaskFormProps> = ({
     const checked = (e.target as HTMLInputElement).checked;
     
     setFormData(prev => {
+      const normalizedValue = (() => {
+        if (type === 'checkbox') return checked;
+        if (name === 'projectId' || name === 'categoryId') {
+          if (!value) return undefined;
+          const parsed = parseInt(value, 10);
+          return Number.isNaN(parsed) ? undefined : parsed;
+        }
+        return value;
+      })();
+
       const newData = {
         ...prev,
-        [name]: type === 'checkbox' ? checked : value
+        [name]: normalizedValue
       };
       
       // 如果修改的是创建日期，并且截止日期为空或等于之前的创建日期，则同步更新截止日期
@@ -127,6 +140,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     // 提交任务数据
     onSubmit({
       ...formData,
+      type: formData.type || 'normal',
       source: formData.source || undefined, // 空字符串转为 undefined
       dueDate: finalDueDate ? new Date(finalDueDate) : undefined,
       createdAt: formData.createdAt ? new Date(formData.createdAt) : undefined
@@ -223,11 +237,33 @@ const TaskForm: React.FC<TaskFormProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="pending">待办</option>
-            <option value="in-progress">进行中</option>
+            <option value="in-progress">处理中</option>
+            <option value="blocked">阻塞</option>
             <option value="completed">已完成</option>
           </select>
         </div>
 
+        <div>
+          <label htmlFor="task-type" className="block text-sm font-medium text-gray-700 mb-1">
+            任务分类
+          </label>
+          <select
+            id="task-type"
+            name="type"
+            value={formData.type || 'normal'}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            {TASK_TYPE_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="task-source" className="block text-sm font-medium text-gray-700 mb-1">
             任务来源
@@ -246,9 +282,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
             ))}
           </select>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             优先级
@@ -298,7 +332,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <option value="">无项目</option>
             {projects.map(project => (
               <option key={project.id} value={project.id}>
-                {project.name} ({project.status === 'active' ? '进行中' : project.status === 'completed' ? '已完成' : project.status === 'planning' ? '规划中' : project.status === 'on-hold' ? '暂停' : '已取消'})
+                {project.name} ({project.status === 'active' ? '处理中' : project.status === 'completed' ? '已完成' : project.status === 'planning' ? '规划中' : project.status === 'on-hold' ? '暂停' : '已取消'})
               </option>
             ))}
           </select>

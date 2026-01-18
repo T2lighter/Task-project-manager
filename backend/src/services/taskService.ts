@@ -13,9 +13,52 @@ function log(message: string) {
 }
 
 export const createTask = async (taskData: Omit<Task, 'id' | 'userId'>, userId: number) => {
+  const normalizeInt = (val: unknown) => {
+    if (val === null || val === undefined || val === '') return undefined;
+    if (typeof val === 'number') return Number.isFinite(val) ? val : undefined;
+    if (typeof val === 'string') {
+      const parsed = parseInt(val, 10);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    }
+    return undefined;
+  };
+
+  const normalizeDate = (val: unknown) => {
+    if (val === null || val === undefined || val === '') return undefined;
+    if (val instanceof Date) return val;
+    if (typeof val === 'string' || typeof val === 'number') {
+      const d = new Date(val);
+      return Number.isNaN(d.getTime()) ? undefined : d;
+    }
+    return undefined;
+  };
+
+  const normalizedProjectId = normalizeInt((taskData as any).projectId);
+  const normalizedCategoryId = normalizeInt((taskData as any).categoryId);
+  const normalizedParentTaskId = normalizeInt((taskData as any).parentTaskId);
+
+  if (normalizedProjectId !== undefined) {
+    const project = await prisma.project.findFirst({
+      where: {
+        id: normalizedProjectId,
+        userId,
+      },
+      select: { id: true },
+    });
+
+    if (!project) {
+      throw new Error('所属项目不存在或无权限访问');
+    }
+  }
+
   return prisma.task.create({
     data: {
-      ...taskData,
+      ...(taskData as any),
+      projectId: normalizedProjectId,
+      categoryId: normalizedCategoryId,
+      parentTaskId: normalizedParentTaskId,
+      dueDate: normalizeDate((taskData as any).dueDate),
+      createdAt: normalizeDate((taskData as any).createdAt),
       userId,
     },
     include: {
@@ -83,7 +126,7 @@ export const updateTask = async (taskId: number, taskData: Partial<Task>, userId
 
   // 检查是否是子任务状态更新
   const isSubtaskUpdate = existingTask.parentTaskId && taskData.status;
-  const isSubtaskActive = taskData.status && (taskData.status === 'pending' || taskData.status === 'in-progress');
+  const isSubtaskActive = taskData.status && (taskData.status === 'pending' || taskData.status === 'in-progress' || taskData.status === 'blocked');
 
   log(`[updateTask] TaskId: ${taskId}, isSubtaskUpdate: ${!!isSubtaskUpdate}, isSubtaskActive: ${!!isSubtaskActive}`);
   log(`[updateTask] parentTaskId: ${existingTask.parentTaskId}, status: ${taskData.status}`);
@@ -167,9 +210,9 @@ export const createSubtask = async (parentTaskId: number, subtaskData: Omit<Task
   });
 
   // 创建子任务后，同步检查父任务状态
-  // 逻辑：如果父任务是completed状态，且新创建的子任务是进行中或代办（默认也是代办），则将父任务改为进行中
+  // 逻辑：如果父任务是completed状态，且新创建的子任务是处理中或代办（默认也是代办），则将父任务改为处理中
   // 注意：如果 subtaskData.status 未定义，Prisma 会使用默认值 'pending'，所以也视为活跃状态
-  const isSubtaskActive = !subtaskData.status || subtaskData.status === 'pending' || subtaskData.status === 'in-progress';
+  const isSubtaskActive = !subtaskData.status || subtaskData.status === 'pending' || subtaskData.status === 'in-progress' || subtaskData.status === 'blocked';
 
   let updatedParentTask = null;
   if (parentTask.status === 'completed' && isSubtaskActive) {

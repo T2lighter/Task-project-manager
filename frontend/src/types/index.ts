@@ -141,7 +141,8 @@ export interface Task {
   id: number;
   title: string;
   description?: string;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: 'pending' | 'in-progress' | 'blocked' | 'completed';
+  type?: 'normal' | 'long-term' | 'deferred';
   urgency: boolean;
   importance: boolean;
   source?: 'verbal' | 'email' | 'im'; // 任务来源：口头说明、邮件收取、通讯软件
@@ -169,6 +170,7 @@ export interface TaskStats {
   completed: number;
   inProgress: number;
   pending: number;
+  blocked: number;
   overdue: number;
   dueToday: number;
   completionRate: number;
@@ -198,6 +200,7 @@ export interface CategoryStats {
   completed: number;
   pending: number;
   inProgress: number;
+  blocked: number;
   completionRate: number;
 }
 
@@ -220,6 +223,7 @@ export interface ProjectTaskStats {
   completedTasks: number;
   inProgressTasks: number;
   pendingTasks: number;
+  blockedTasks: number;
   overdueTasks: number;
   completionRate: number;
   progress: number;

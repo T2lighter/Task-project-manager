@@ -12,12 +12,12 @@ const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({
   stats, 
   onProjectsClick, 
   onStatusFilter,
-  selectedStatus = 'active' // 默认选中进行中
+  selectedStatus = 'active' // 默认选中处理中
 }) => {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'active':
-        return { color: 'bg-blue-100 text-blue-800', icon: '🚀', text: '进行中' };
+        return { color: 'bg-blue-100 text-blue-800', icon: '🚀', text: '处理中' };
       case 'completed':
         return { color: 'bg-green-100 text-green-800', icon: '✅', text: '已完成' };
       case 'planning':

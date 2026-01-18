@@ -97,7 +97,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
   // 项目状态选项
   const statusOptions = [
     { value: 'planning', label: '规划中', color: 'text-gray-600' },
-    { value: 'active', label: '进行中', color: 'text-blue-600' },
+    { value: 'active', label: '处理中', color: 'text-blue-600' },
     { value: 'completed', label: '已完成', color: 'text-green-600' },
     { value: 'on-hold', label: '暂停', color: 'text-yellow-600' },
     { value: 'cancelled', label: '已取消', color: 'text-red-600' }

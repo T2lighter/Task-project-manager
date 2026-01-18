@@ -367,7 +367,7 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
       case 'draft':
         return { color: 'bg-gray-100 text-gray-800', icon: '📝', text: '草稿' };
       case 'active':
-        return { color: 'bg-blue-100 text-blue-800', icon: '🚀', text: '进行中' };
+        return { color: 'bg-blue-100 text-blue-800', icon: '🚀', text: '处理中' };
       case 'completed':
         return { color: 'bg-green-100 text-green-800', icon: '✅', text: '已完成' };
       case 'cancelled':
@@ -382,11 +382,26 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
       case 'not-started':
         return { color: 'bg-gray-100 text-gray-800', icon: '⏸️', text: '未开始' };
       case 'in-progress':
-        return { color: 'bg-blue-100 text-blue-800', icon: '🔄', text: '进行中' };
+        return { color: 'bg-blue-100 text-blue-800', icon: '🔄', text: '处理中' };
       case 'completed':
         return { color: 'bg-green-100 text-green-800', icon: '✅', text: '已完成' };
       case 'at-risk':
         return { color: 'bg-red-100 text-red-800', icon: '⚠️', text: '有风险' };
+      default:
+        return { color: 'bg-gray-100 text-gray-800', icon: '⏸️', text: '未知' };
+    }
+  };
+
+  const getActionCheckStatusConfig = (status: ActionCheck['status']) => {
+    switch (status) {
+      case 'pending':
+        return { color: 'bg-gray-100 text-gray-800', icon: '⏸️', text: '待处理' };
+      case 'in-progress':
+        return { color: 'bg-blue-100 text-blue-800', icon: '🔄', text: '处理中' };
+      case 'completed':
+        return { color: 'bg-green-100 text-green-800', icon: '✅', text: '已完成' };
+      case 'failed':
+        return { color: 'bg-red-100 text-red-800', icon: '❌', text: '失败' };
       default:
         return { color: 'bg-gray-100 text-gray-800', icon: '⏸️', text: '未知' };
     }
@@ -841,6 +856,7 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
                         {objective.actionChecks && objective.actionChecks.length > 0 ? (
                           <div className="space-y-2">
                             {objective.actionChecks.map((check) => {
+                              const statusConfig = getActionCheckStatusConfig(check.status);
                               let checklist = [];
                               try {
                                 checklist = check.criteria ? JSON.parse(check.criteria) : [];
@@ -858,15 +874,9 @@ const ProjectOKR: React.FC<ProjectOKRProps> = ({ project }) => {
                                     <div className="flex-1">
                                       <div className="flex items-center gap-1 mb-1">
                                         <h5 className="font-medium text-gray-900 text-xs">{check.title}</h5>
-                                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                                          check.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                          check.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                                          check.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                          'bg-gray-100 text-gray-800'
-                                        }`}>
-                                          {check.status === 'completed' ? '已完成' :
-                                           check.status === 'in-progress' ? '进行中' :
-                                           check.status === 'failed' ? '失败' : '待处理'}
+                                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusConfig.color} flex items-center gap-1`}>
+                                          <span>{statusConfig.icon}</span>
+                                          <span>{statusConfig.text}</span>
                                         </span>
                                       </div>
                                       {check.description && (

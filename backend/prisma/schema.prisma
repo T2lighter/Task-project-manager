@@ -31,6 +31,7 @@ model Task {
   title        String
   description  String?
   status       String    @default("pending")
+  type         String    @default("normal")
   urgency      Boolean   @default(false)
   importance   Boolean   @default(false)
   source       String?   // 任务来源：verbal(口头说明), email(邮件收取), im(通讯软件)

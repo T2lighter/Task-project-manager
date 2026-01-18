@@ -28,7 +28,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
         return {
           color: 'bg-blue-100 text-blue-800',
           icon: '🚀',
-          text: '进行中'
+          text: '处理中'
         };
       case 'completed':
         return {

@@ -2,7 +2,7 @@ import React from 'react';
 import { Task } from '../types';
 import { format } from 'date-fns';
 import { getPriorityConfig, isTaskOverdue, isTaskDueToday } from '../utils/taskUtils';
-import { TASK_STATUS_NAMES } from '../constants';
+import { TASK_STATUS_NAMES, TASK_TYPE_NAMES, TASK_SOURCE_NAMES } from '../constants';
 import SubtaskList from './SubtaskList';
 import SubtaskModal from './SubtaskModal';
 
@@ -249,6 +249,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   ? 'bg-green-100 text-green-800' 
                   : task.status === 'in-progress' 
                     ? 'bg-indigo-100 text-indigo-800' 
+                    : task.status === 'blocked'
+                      ? 'bg-purple-100 text-purple-800'
                     : 'bg-slate-100 text-slate-800'
               }`}>
                 {TASK_STATUS_NAMES[task.status as keyof typeof TASK_STATUS_NAMES]}
@@ -261,6 +263,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   ? 'bg-green-100 text-green-800' 
                   : task.status === 'in-progress' 
                     ? 'bg-indigo-100 text-indigo-800' 
+                    : task.status === 'blocked'
+                      ? 'bg-purple-100 text-purple-800'
                     : 'bg-slate-100 text-slate-800'
               }`}>
                 {TASK_STATUS_NAMES[task.status as keyof typeof TASK_STATUS_NAMES]}
@@ -298,6 +302,19 @@ const TaskCard: React.FC<TaskCardProps> = ({
             {task.category && (
               <span className={`bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-full ${compact ? 'text-xs' : 'text-xs'}`}>
                 {task.category.name}
+              </span>
+            )}
+            {task.type && (
+              <span className={`bg-sky-100 text-sky-800 ${compact ? 'px-1 py-0.5 text-xs' : 'px-1.5 py-0.5 text-xs'} rounded-full`}>
+                {TASK_TYPE_NAMES[task.type].replace('任务', '')}
+              </span>
+            )}
+            {task.source && (
+              <span
+                className={`bg-emerald-100 text-emerald-800 ${compact ? 'px-1 py-0.5 text-xs' : 'px-1.5 py-0.5 text-xs'} rounded-full`}
+                title={TASK_SOURCE_NAMES[task.source]}
+              >
+                {task.source === 'verbal' ? '口头' : task.source === 'email' ? '邮件' : '通讯'}
               </span>
             )}
             {/* 截止日期和逾期状态 */}

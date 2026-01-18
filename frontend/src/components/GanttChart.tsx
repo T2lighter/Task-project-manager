@@ -79,7 +79,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) => {
         ...task,
         startOffset: Math.max(0, startOffset),
         duration: Math.max(1, duration),
-        progress: task.status === 'completed' ? 100 : task.status === 'in-progress' ? 50 : 0
+        progress: task.status === 'completed' ? 100 : task.status === 'in-progress' ? 50 : task.status === 'blocked' ? 25 : 0
       };
     });
 
@@ -96,6 +96,7 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) => {
   const getTaskColor = (task: Task) => {
     if (task.status === 'completed') return 'bg-green-500';
     if (task.status === 'in-progress') return 'bg-blue-500';
+    if (task.status === 'blocked') return 'bg-purple-500';
     return 'bg-gray-400';
   };
 
@@ -216,7 +217,11 @@ const GanttChart: React.FC<GanttChartProps> = ({ tasks, onTaskClick }) => {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-500 rounded"></div>
-              <span>进行中</span>
+              <span>处理中</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-purple-500 rounded"></div>
+              <span>阻塞</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-green-500 rounded"></div>

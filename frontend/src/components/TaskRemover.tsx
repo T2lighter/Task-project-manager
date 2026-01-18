@@ -21,7 +21,7 @@ const TaskRemover: React.FC<TaskRemoverProps> = ({
 }) => {
   const { tasks, fetchTasks } = useTaskStore();
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'blocked' | 'completed'>('all');
 
   useEffect(() => {
     if (isOpen) {
@@ -39,6 +39,8 @@ const TaskRemover: React.FC<TaskRemoverProps> = ({
         return projectTasks.filter(task => task.status === 'pending');
       case 'in-progress':
         return projectTasks.filter(task => task.status === 'in-progress');
+      case 'blocked':
+        return projectTasks.filter(task => task.status === 'blocked');
       case 'completed':
         return projectTasks.filter(task => task.status === 'completed');
       case 'all':
@@ -84,6 +86,8 @@ const TaskRemover: React.FC<TaskRemoverProps> = ({
         return projectTasks.filter(task => task.status === 'pending').length;
       case 'in-progress':
         return projectTasks.filter(task => task.status === 'in-progress').length;
+      case 'blocked':
+        return projectTasks.filter(task => task.status === 'blocked').length;
       case 'completed':
         return projectTasks.filter(task => task.status === 'completed').length;
       default:
@@ -148,7 +152,17 @@ const TaskRemover: React.FC<TaskRemoverProps> = ({
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            进行中 ({getTaskCount('in-progress')})
+            处理中 ({getTaskCount('in-progress')})
+          </button>
+          <button
+            onClick={() => setFilter('blocked')}
+            className={`px-3 py-1 rounded-full text-xs font-medium ${
+              filter === 'blocked' 
+                ? 'bg-purple-100 text-purple-800' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            阻塞 ({getTaskCount('blocked')})
           </button>
           <button
             onClick={() => setFilter('completed')}
@@ -183,8 +197,9 @@ const TaskRemover: React.FC<TaskRemoverProps> = ({
             <div className="text-center py-8">
               <div className="text-gray-400 text-4xl mb-4">📝</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {filter === 'all' ? '项目中没有任务' : `没有${filter === 'pending' ? '待办' : filter === 'in-progress' ? '进行中' : '已完成'}的任务`}
+                {filter === 'all' ? '项目中没有任务' : `没有${filter === 'pending' ? '待办' : filter === 'in-progress' ? '处理中' : filter === 'blocked' ? '阻塞' : '已完成'}的任务`}
               </h3>
+
               <p className="text-gray-600">
                 {filter === 'all' ? '当前项目中没有可移除的任务' : '切换到其他筛选条件查看任务'}
               </p>

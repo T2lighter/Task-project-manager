@@ -179,7 +179,7 @@ const ProjectsPage: React.FC = () => {
       // 搜索状态（中文）
       const statusMap: { [key: string]: string } = {
         'planning': '规划中',
-        'active': '进行中',
+        'active': '处理中',
         'completed': '已完成',
         'on-hold': '暂停'
       };
@@ -334,7 +334,7 @@ const ProjectsPage: React.FC = () => {
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          进行中 ({getProjectCount('active')})
+          处理中 ({getProjectCount('active')})
         </button>
         <button
           onClick={() => setFilter('planning')}
@@ -425,7 +425,7 @@ const ProjectsPage: React.FC = () => {
               ? `没有找到包含"${searchQuery}"的项目` 
               : filter === 'all' 
                 ? '还没有项目' 
-                : `没有${filter === 'active' ? '进行中' : filter === 'completed' ? '已完成' : filter === 'planning' ? '规划中' : '暂停'}的项目`
+                : `没有${filter === 'active' ? '处理中' : filter === 'completed' ? '已完成' : filter === 'planning' ? '规划中' : '暂停'}的项目`
             }
           </h3>
           <p className="text-gray-600 mb-4">

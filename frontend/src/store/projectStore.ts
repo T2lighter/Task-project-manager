@@ -109,7 +109,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   getProjectTaskStats: async (projectId) => {
     // Mock implementation for now
+    try {
+      const response = await api.get('/stats/project-task-stats');
+      const statsList = response.data as ProjectTaskStats[];
+      const stats = statsList.find(s => s.projectId === projectId);
+      if (stats) {
+        return stats;
+      }
+    } catch {
+    }
+
     const project = get().projects.find(p => p.id === projectId);
+    const progress = project?.progress || 0;
     return {
       projectId,
       projectName: project?.name || '未知项目',
@@ -118,9 +129,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       completedTasks: project?.completedTaskCount || 0,
       inProgressTasks: 0,
       pendingTasks: 0,
+      blockedTasks: 0,
       overdueTasks: 0,
-      completionRate: project?.progress ? project.progress / 100 : 0,
-      progress: project?.progress || 0
+      completionRate: progress,
+      progress
     };
   }
 }));

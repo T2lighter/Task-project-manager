@@ -96,7 +96,8 @@ const SubtaskForm: React.FC<SubtaskFormProps> = ({
           className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="pending">待办</option>
-          <option value="in-progress">进行中</option>
+          <option value="in-progress">处理中</option>
+          <option value="blocked">阻塞</option>
           <option value="completed">已完成</option>
         </select>
       </div>

@@ -169,7 +169,7 @@ const ObjectiveForm: React.FC<ObjectiveFormProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="draft">草稿</option>
-            <option value="active">进行中</option>
+            <option value="active">处理中</option>
             <option value="completed">已完成</option>
             <option value="cancelled">已取消</option>
           </select>

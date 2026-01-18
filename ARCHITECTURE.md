@@ -46,7 +46,7 @@
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
 │  │   统计路由      │  │   分类路由      │  │   OKR路由       │ │
-│  │  /api/stats     │  │ /api/categories │  │  /api/okr       │ │
+│  │  /api/stats     │  │ /api/categories │  │ /api/objectives │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
                                 │
@@ -136,7 +136,7 @@
 
 #### 功能特性
 - **用户注册**：用户名、邮箱、密码注册
-- **用户登录**：支持用户名/邮箱登录
+- **用户登录**：用户名登录
 - **JWT认证**：无状态令牌认证
 - **密码安全**：bcrypt加密存储
 
@@ -147,7 +147,6 @@ interface AuthService {
   register(userData: RegisterData): Promise<AuthResponse>
   login(credentials: LoginData): Promise<AuthResponse>
   verifyToken(token: string): Promise<User>
-  refreshToken(token: string): Promise<string>
 }
 ```
 
@@ -162,11 +161,12 @@ interface AuthService {
 #### 核心功能
 - **任务CRUD**：创建、读取、更新、删除
 - **优先级管理**：重要性、紧急性双维度
-- **状态管理**：待办、进行中、已完成
+- **状态管理**：待办、处理中、已完成
 - **分类管理**：自定义任务分类
 - **子任务系统**：支持任务层次化管理
 - **任务复制**：快速复制任务和子任务
 - **拖拽操作**：直观的任务状态/优先级调整
+- **个性化标签视图**：前端自定义标签分组（localStorage持久化，当前无后端接口）
 
 #### 四象限分类
 ```typescript
@@ -215,7 +215,7 @@ const SUBTASK_RULES = {
 
 #### 核心功能
 - **项目CRUD**：完整的项目生命周期管理
-- **状态管理**：规划中、进行中、已完成、暂停、已取消
+- **状态管理**：规划中、处理中、已完成、暂停、已取消
 - **任务关联**：项目与任务的多对多关系
 - **进度跟踪**：基于关联任务的自动进度计算
 - **甘特图展示**：时间轴可视化项目进度
@@ -292,16 +292,16 @@ interface OKRStructure {
   objective: {
     id: number
     title: string
-    description: string
+    description: string?
     status: 'draft' | 'active' | 'completed' | 'cancelled'
     progress: number // 0-100
   }
   
   // 四个平级组件
-  keyResults: KeyResult[]           // 关键结果
-  resourceRequirements: Resource[]  // 资源需求
-  executionPlans: ExecutionPlan[]   // 执行计划
-  actionChecks: ActionCheck[]       // 行动检查
+  keyResults: KeyResult[]
+  resourceRequirements: Resource[]
+  executionPlans: ExecutionPlan[]
+  actionChecks: ActionCheck[]
 }
 ```
 
@@ -434,7 +434,7 @@ const groupTasksByDate = (tasks: Task[]): Record<string, Task[]> => {
 }
 ```
 
-### 4.5 个人主页模块
+### 4.8 个人主页模块
 
 #### 仪表盘组件
 - **统计卡片**：核心指标展示
@@ -465,51 +465,48 @@ const groupTasksByDate = (tasks: Task[]): Record<string, Task[]> => {
 #### 用户表 (User)
 ```prisma
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  email     String   @unique
-  password  String   // bcrypt加密
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // 关联关系
-  tasks     Task[]
-  categories Category[]
-  
-  @@map("users")
+  id                   Int                   @id @default(autoincrement())
+  username             String                @unique
+  password             String
+  email                String                @unique
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  actionChecks         ActionCheck[]
+  Category             Category[]
+  executionPlans       ExecutionPlan[]
+  keyResults           KeyResult[]
+  keyResultUpdates     KeyResultUpdate[]
+  objectives           Objective[]
+  projects             Project[]
+  projectNotes         ProjectNote[]
+  resourceRequirements ResourceRequirement[]
+  tasks                Task[]
 }
 ```
 
 #### 任务表 (Task)
 ```prisma
 model Task {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String?
-  status      TaskStatus @default(PENDING)
-  urgency     Boolean   @default(false)
-  importance  Boolean   @default(false)
-  dueDate     DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  // 外键关系
-  userId      Int
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId  Int?
-  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  
-  // 索引优化
-  @@index([userId, status])
-  @@index([userId, urgency, importance])
-  @@index([createdAt])
-  @@map("tasks")
-}
-
-enum TaskStatus {
-  PENDING     // 待办
-  IN_PROGRESS // 进行中
-  COMPLETED   // 已完成
+  id           Int       @id @default(autoincrement())
+  title        String
+  description  String?
+  status       String    @default("pending")
+  type         String    @default("normal")
+  urgency      Boolean   @default(false)
+  importance   Boolean   @default(false)
+  source       String?   // 任务来源：verbal(口头说明), email(邮件收取), im(通讯软件)
+  dueDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  userId       Int
+  categoryId   Int?
+  projectId    Int?
+  parentTaskId Int?
+  parentTask   Task?     @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks     Task[]    @relation("TaskSubtasks")
+  project      Project?  @relation(fields: [projectId], references: [id])
+  category     Category? @relation(fields: [categoryId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
 }
 ```
 
@@ -518,107 +515,155 @@ enum TaskStatus {
 model Category {
   id        Int      @id @default(autoincrement())
   name      String
-  color     String   @default("#3b82f6")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // 外键关系
   userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
   tasks     Task[]
-  
-  // 唯一约束
-  @@unique([userId, name])
-  @@map("categories")
 }
 ```
 
-#### 项目表 (Project) 🆕
+#### 项目表 (Project) 
 ```prisma
 model Project {
-  id          Int       @id @default(autoincrement())
-  title       String
+  id          Int           @id @default(autoincrement())
+  name        String
   description String?
-  status      String    @default("planning") // planning, active, completed, on_hold, cancelled
+  status      String        @default("planning")
   startDate   DateTime?
   endDate     DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  // 关联关系
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   userId      Int
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tasks       Task[]    // 项目关联的任务
-  notes       ProjectNote[]
   objectives  Objective[]
-  
-  @@map("projects")
+  user        User          @relation(fields: [userId], references: [id])
+  notes       ProjectNote[]
+  tasks       Task[]
 }
 ```
 
-#### 项目记录表 (ProjectNote) 🆕
+#### 项目记录表 (ProjectNote) 
 ```prisma
 model ProjectNote {
-  id          Int       @id @default(autoincrement())
-  title       String
-  content     String
-  type        String    @default("note") // note, summary, meeting, issue, milestone, reflection
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  // 关联关系
-  projectId   Int
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  @@map("project_notes")
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  type      String   @default("note")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projectId Int
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 ```
 
-#### OKR目标表 (Objective) 🆕
+#### OKR目标表 (Objective) 
 ```prisma
 model Objective {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String?
-  status      String    @default("draft") // draft, active, completed, cancelled
-  progress    Int       @default(0)
-  startDate   DateTime?
-  endDate     DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  // 关联关系
-  projectId   Int
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  keyResults  KeyResult[]
-  
-  @@map("objectives")
+  id                   Int                   @id @default(autoincrement())
+  title                String
+  description          String?
+  status               String                @default("draft")
+  progress             Int                   @default(0)
+  startDate            DateTime?
+  endDate              DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  projectId            Int
+  userId               Int
+  actionChecks         ActionCheck[]
+  executionPlans       ExecutionPlan[]
+  keyResults           KeyResult[]
+  user                 User                  @relation(fields: [userId], references: [id])
+  project              Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  resourceRequirements ResourceRequirement[]
 }
 ```
 
-#### 关键结果表 (KeyResult) 🆕
+#### 关键结果表 (KeyResult) 
 ```prisma
 model KeyResult {
-  id          Int       @id @default(autoincrement())
-  title       String
+  id          Int               @id @default(autoincrement())
   description String?
-  status      String    @default("pending")
-  currentValue Float    @default(0)
-  targetValue  Float
-  unit        String?
-  weight      Int       @default(1)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  // 关联关系
+  status      String            @default("not-started")
+  progress    Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   objectiveId Int
-  objective   Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
-  
-  @@map("key_results")
+  userId      Int
+  user        User              @relation(fields: [userId], references: [id])
+  objective   Objective         @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  updates     KeyResultUpdate[]
 }
 ```
 
-### 5.2 数据关系图
+#### 关键结果更新表 (KeyResultUpdate) 
+```prisma
+model KeyResultUpdate {
+  id          Int       @id @default(autoincrement())
+  progress    Int
+  note        String?
+  createdAt   DateTime  @default(now())
+  keyResultId Int
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+}
+```
+
+#### 资源需求表 (ResourceRequirement) 
+```prisma
+model ResourceRequirement {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  type        String    @default("other")
+  status      String    @default("requested")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  objectiveId Int
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  objective   Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+}
+```
+
+#### 执行计划表 (ExecutionPlan) 
+```prisma
+model ExecutionPlan {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  phase       String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  objectiveId Int
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  objective   Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+}
+```
+
+#### 行动检查表 (ActionCheck) 
+```prisma
+model ActionCheck {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  checkType   String    @default("weekly")
+  criteria    String?
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  objectiveId Int
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  objective   Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+}
+```
+
+### 6.2 数据关系图
 
 ```
 User (1) ──────── (N) Task
@@ -629,7 +674,7 @@ User (1) ──────── (N) Task
            └── (1) ──────── (N) Task
 ```
 
-### 5.3 数据访问优化
+### 6.3 数据访问优化
 
 #### 查询优化策略
 ```typescript
@@ -678,28 +723,19 @@ DELETE /api/resource/:id      # 删除资源
 
 #### 响应格式标准
 ```typescript
-interface ApiResponse<T = any> {
-  success: boolean
-  data?: T
-  message?: string
-  error?: string
-  timestamp: string
-}
+// 本项目后端多数接口直接返回业务对象/数组（不额外包一层 success/data）
+// 错误时返回统一结构：{ message: string }
 
-// 成功响应
-{
-  "success": true,
-  "data": { ... },
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}
+// 示例：成功响应（对象）
+{ "id": 1, "title": "..." }
 
-// 错误响应
-{
-  "success": false,
-  "error": "Resource not found",
-  "message": "The requested task does not exist",
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}
+// 示例：成功响应（数组）
+[
+  { "id": 1, "title": "..." }
+]
+
+// 示例：错误响应
+{ "message": "用户未认证" }
 ```
 
 ### 7.2 核心API接口
@@ -716,12 +752,11 @@ interface RegisterRequest {
 interface AuthResponse {
   user: User
   token: string
-  expiresIn: number
 }
 
 // POST /api/auth/login
 interface LoginRequest {
-  username: string  // 支持用户名或邮箱
+  username: string
   password: string
 }
 ```
@@ -760,7 +795,7 @@ interface UpdateTaskRequest {
 }
 ```
 
-#### 项目接口 🆕
+#### 项目接口 
 ```typescript
 // GET /api/projects
 interface GetProjectsQuery {
@@ -770,7 +805,7 @@ interface GetProjectsQuery {
 
 // POST /api/projects
 interface CreateProjectRequest {
-  title: string
+  name: string
   description?: string
   status?: ProjectStatus
   startDate?: string
@@ -778,51 +813,94 @@ interface CreateProjectRequest {
 }
 ```
 
-#### OKR接口 🆕
+#### OKR接口 
 ```typescript
-// GET /api/projects/:projectId/objectives
-interface GetObjectivesResponse {
-  objectives: ObjectiveWithDetails[]
-}
-
-// POST /api/projects/:projectId/objectives
+// POST /api/objectives
 interface CreateObjectiveRequest {
+  projectId: number
   title: string
   description?: string
   startDate?: string
   endDate?: string
 }
 
-// POST /api/objectives/:id/key-results
+// GET /api/objectives/:id
+// PUT /api/objectives/:id
+// DELETE /api/objectives/:id
+
+// POST /api/key-results
 interface CreateKeyResultRequest {
-  title: string
-  targetValue: number
-  unit?: string
-  weight?: number
+  objectiveId: number
+  description?: string
+  status?: string
+  progress?: number
 }
+
+// PUT /api/key-results/:id
+// DELETE /api/key-results/:id
+
+// POST /api/resource-requirements
+// POST /api/execution-plans
+// POST /api/action-checks
 ```
 
 #### 统计接口
 ```typescript
-// GET /api/stats/overview
-interface StatsOverview {
-  taskStats: TaskStats
-  quadrantStats: QuadrantStats
-  categoryStats: CategoryStats[]
-  recentActivity: ActivityData[]
+// GET /api/stats/stats
+interface TaskStatsQuery {
+  period?: 'day' | 'week' | 'month'
+}
+
+// GET /api/stats/quadrant-stats
+interface QuadrantStatsQuery {
+  period?: 'day' | 'week' | 'month'
+}
+
+// GET /api/stats/category-stats
+interface CategoryStatsQuery {
+  period?: 'day' | 'week' | 'month'
+}
+
+// GET /api/stats/project-stats
+// GET /api/stats/project-task-stats
+
+// GET /api/stats/task-duration-ranking
+interface TaskDurationRankingQuery {
+  year?: number
 }
 
 // GET /api/stats/time-series
 interface TimeSeriesQuery {
-  period: 'day' | 'week' | 'month'
-  startDate?: string
-  endDate?: string
+  period?: 'day' | 'week' | 'month'
+  date?: string
 }
 
-// GET /api/stats/heatmap
-interface HeatmapQuery {
-  year: number
+// GET /api/stats/time-series-year
+interface YearHeatmapQuery {
+  year?: number
 }
+```
+
+#### 项目记录接口 
+```typescript
+// POST /api/projects/:projectId/notes
+interface CreateProjectNoteRequest {
+  title: string
+  content: string
+  type?: string
+}
+
+// GET /api/projects/:projectId/notes
+// GET /api/notes/:noteId
+// PUT /api/notes/:noteId
+// DELETE /api/notes/:noteId
+```
+
+#### 文件上传接口
+```typescript
+// POST /api/upload/image (form-data: image)
+// DELETE /api/upload/image/:filename
+// GET /api/uploads/:filename
 ```
 
 ### 7.3 错误处理机制
@@ -851,11 +929,7 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
   // 记录错误日志
   console.error(`[${new Date().toISOString()}] ${statusCode} - ${message}`)
   
-  res.status(statusCode).json({
-    success: false,
-    error: message,
-    timestamp: new Date().toISOString()
-  })
+  res.status(statusCode).json({ message })
 }
 ```
 
@@ -866,44 +940,17 @@ const errorHandler = (err: Error, req: Request, res: Response, next: NextFunctio
 #### 组件分层
 ```
 src/
-├── components/           # 通用组件
-│   ├── ui/              # 基础UI组件
-│   │   ├── Button.tsx
-│   │   ├── Input.tsx
-│   │   ├── Modal.tsx
-│   │   └── Loading.tsx
-│   ├── charts/          # 图表组件
-│   │   ├── PieChart.tsx
-│   │   ├── BarChart.tsx
-│   │   └── Heatmap.tsx
-│   ├── task/            # 任务相关组件
-│   │   ├── TaskCard.tsx
-│   │   ├── TaskForm.tsx
-│   │   ├── Quadrant.tsx
-│   │   └── KanbanBoard.tsx
-│   └── calendar/        # 日历相关组件
-│       ├── CalendarGrid.tsx
-│       ├── CalendarDay.tsx
-│       ├── CalendarDay.tsx
-      └── CalendarHeader.tsx
-  ├── project/           # 项目相关组件 🆕
-  │   ├── ProjectCard.tsx
-  │   ├── ProjectForm.tsx
-  │   ├── ProjectNotes.tsx
-  │   ├── GanttChart.tsx
-  │   └── ProjectOKR.tsx
-  ├── okr/               # OKR相关组件 🆕
-  │   ├── ObjectiveForm.tsx
-  │   ├── KeyResultForm.tsx
-  │   └── ExecutionPlanForm.tsx
-├── pages/               # 页面组件
-│   ├── ProfilePage.tsx
-│   ├── TasksPage.tsx
-│   ├── CalendarPage.tsx
-│   └── LoginPage.tsx
-└── layouts/             # 布局组件
-    ├── AppLayout.tsx
-    └── AuthLayout.tsx
+├── components/
+├── constants/
+├── hooks/
+├── pages/
+├── services/
+├── store/
+├── types/
+├── utils/
+├── App.tsx
+├── main.tsx
+└── index.css
 ```
 
 #### 组件设计原则
@@ -963,25 +1010,14 @@ interface StatsState {
 
 #### 路由配置
 ```typescript
+// 当前实现见 frontend/src/App.tsx
+// 未登录时在根组件内直接渲染登录/注册表单；登录后使用 BrowserRouter + Routes
 const routes = [
-  {
-    path: '/',
-    element: <AppLayout />,
-    children: [
-      { index: true, element: <ProfilePage /> },
-      { path: 'tasks', element: <TasksPage /> },
-      { path: 'calendar', element: <CalendarPage /> },
-      { path: 'settings', element: <SettingsPage /> }
-    ]
-  },
-  {
-    path: '/auth',
-    element: <AuthLayout />,
-    children: [
-      { path: 'login', element: <LoginPage /> },
-      { path: 'register', element: <RegisterPage /> }
-    ]
-  }
+  { path: '/', element: <ProfilePage /> },
+  { path: '/tasks', element: <TasksPage /> },
+  { path: '/calendar', element: <CalendarPage /> },
+  { path: '/projects', element: <ProjectsPage /> },
+  { path: '/projects/:id', element: <ProjectDetailPage /> }
 ]
 ```
 
@@ -998,292 +1034,41 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 }
 ```
 
-## 9. 性能优化策略
+## 9. 部署架构
 
-### 9.1 前端性能优化
+### 9.1 开发环境
 
-#### 代码分割
-```typescript
-// 路由级别的代码分割
-const ProfilePage = lazy(() => import('./pages/ProfilePage'))
-const TasksPage = lazy(() => import('./pages/TasksPage'))
+#### 本地开发启动方式
+```bash
+# Windows 可使用：start.bat / start.ps1
+# 或分别启动：
 
-// 组件级别的代码分割
-const HeatmapChart = lazy(() => import('./components/charts/HeatmapChart'))
+# 后端：
+cd backend
+npm run dev
+
+# 前端：
+cd frontend
+npm run dev
+
+# 前端默认：http://localhost:5173
+# 后端默认：http://localhost:5000
+# 前端请求使用 /api，相对路径由 Vite 代理到后端
 ```
 
-#### 缓存策略
-```typescript
-// API响应缓存
-const apiCache = new Map<string, { data: any, timestamp: number }>()
-
-const getCachedData = (key: string, ttl: number = 5 * 60 * 1000) => {
-  const cached = apiCache.get(key)
-  if (cached && Date.now() - cached.timestamp < ttl) {
-    return cached.data
-  }
-  return null
-}
-```
-
-#### 虚拟化长列表
-```typescript
-// 使用react-window进行列表虚拟化
-const VirtualizedTaskList = ({ tasks }: { tasks: Task[] }) => {
-  return (
-    <FixedSizeList
-      height={600}
-      itemCount={tasks.length}
-      itemSize={80}
-      itemData={tasks}
-    >
-      {TaskItem}
-    </FixedSizeList>
-  )
-}
-```
-
-### 9.2 后端性能优化
-
-#### 数据库优化
-```sql
--- 创建复合索引
-CREATE INDEX idx_tasks_user_status ON tasks(user_id, status);
-CREATE INDEX idx_tasks_user_priority ON tasks(user_id, urgency, importance);
-CREATE INDEX idx_tasks_created_at ON tasks(created_at);
-
--- 查询优化
-EXPLAIN QUERY PLAN 
-SELECT * FROM tasks 
-WHERE user_id = ? AND status = ? 
-ORDER BY created_at DESC;
-```
-
-#### 缓存机制
-```typescript
-// Redis缓存（生产环境）
-const cache = {
-  async get(key: string) {
-    return await redis.get(key)
-  },
-  
-  async set(key: string, value: any, ttl: number = 300) {
-    await redis.setex(key, ttl, JSON.stringify(value))
-  },
-  
-  async del(key: string) {
-    await redis.del(key)
-  }
-}
-
-// 内存缓存（开发环境）
-const memoryCache = new Map<string, { data: any, expires: number }>()
-```
-
-#### 请求优化
-```typescript
-// 批量操作
-const batchUpdateTasks = async (updates: TaskUpdate[]) => {
-  return await prisma.$transaction(
-    updates.map(update => 
-      prisma.task.update({
-        where: { id: update.id },
-        data: update.data
-      })
-    )
-  )
-}
-
-// 分页查询
-const getPaginatedTasks = async (userId: number, page: number, limit: number) => {
-  const offset = (page - 1) * limit
-  
-  const [tasks, total] = await Promise.all([
-    prisma.task.findMany({
-      where: { userId },
-      skip: offset,
-      take: limit,
-      orderBy: { createdAt: 'desc' }
-    }),
-    prisma.task.count({ where: { userId } })
-  ])
-  
-  return { tasks, total, page, limit }
-}
-```
-
-## 10. 安全设计
-
-### 10.1 认证安全
-
-#### JWT安全配置
-```typescript
-const jwtConfig = {
-  secret: process.env.JWT_SECRET,
-  expiresIn: '24h',
-  algorithm: 'HS256',
-  issuer: 'task-manager',
-  audience: 'task-manager-users'
-}
-
-// Token验证中间件
-const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization']
-  const token = authHeader && authHeader.split(' ')[1]
-  
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' })
-  }
-  
-  jwt.verify(token, jwtConfig.secret, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' })
-    }
-    req.user = user
-    next()
-  })
-}
-```
-
-#### 密码安全
-```typescript
-// 密码强度验证
-const validatePassword = (password: string): boolean => {
-  const minLength = 8
-  const hasUpperCase = /[A-Z]/.test(password)
-  const hasLowerCase = /[a-z]/.test(password)
-  const hasNumbers = /\d/.test(password)
-  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password)
-  
-  return password.length >= minLength && 
-         hasUpperCase && 
-         hasLowerCase && 
-         hasNumbers && 
-         hasSpecialChar
-}
-
-// 密码加密
-const hashPassword = async (password: string): Promise<string> => {
-  const saltRounds = 12
-  return await bcrypt.hash(password, saltRounds)
-}
-```
-
-### 10.2 数据安全
-
-#### 输入验证
-```typescript
-// 使用Joi进行数据验证
-const taskSchema = Joi.object({
-  title: Joi.string().min(1).max(200).required(),
-  description: Joi.string().max(1000).optional(),
-  urgency: Joi.boolean().required(),
-  importance: Joi.boolean().required(),
-  dueDate: Joi.date().iso().optional(),
-  categoryId: Joi.number().integer().positive().optional()
-})
-
-const validateTask = (data: any) => {
-  const { error, value } = taskSchema.validate(data)
-  if (error) {
-    throw new Error(`Validation error: ${error.details[0].message}`)
-  }
-  return value
-}
-```
-
-#### SQL注入防护
-```typescript
-// 使用Prisma ORM自动防护SQL注入
-const getUserTasks = async (userId: number, status?: string) => {
-  return await prisma.task.findMany({
-    where: {
-      userId,
-      ...(status && { status: status as TaskStatus })
-    }
-  })
-}
-```
-
-### 10.3 API安全
-
-#### 请求限制
-```typescript
-// 使用express-rate-limit
-const rateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 最多100个请求
-  message: 'Too many requests from this IP',
-  standardHeaders: true,
-  legacyHeaders: false
-})
-
-// 登录接口特殊限制
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5, // 最多5次登录尝试
-  skipSuccessfulRequests: true
-})
-```
-
-#### CORS配置
-```typescript
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
-    : ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true,
-  optionsSuccessStatus: 200
-}
-
-app.use(cors(corsOptions))
-```
-
-## 10. 部署架构
-
-### 10.1 开发环境
-
-#### 本地开发配置
-```yaml
-# docker-compose.dev.yml
-version: '3.8'
-services:
-  frontend:
-    build: ./frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://localhost:5000/api
-  
-  backend:
-    build: ./backend
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=file:./dev.db
-      - JWT_SECRET=dev-secret-key
-```
-
-### 10.2 生产环境
+### 9.2 生产环境
 
 #### 部署架构图
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   CDN/Nginx     │    │   Load Balancer │    │   Database      │
-│  (Static Files) │    │   (API Gateway) │    │  (PostgreSQL)   │
+│  (Static Files) │    │   (API Gateway) │    │    (SQLite)     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Backend       │    │   Redis Cache   │
-│  (Vercel/Netlify)│   │  (Railway/Render)│   │  (Upstash)      │
+│   Frontend      │    │   Backend       │    │   Volume/FS     │
+│  (Vercel/Netlify)│   │  (Railway/Render)│   │ (backend_data)  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -1291,13 +1076,12 @@ services:
 ```bash
 # 生产环境变量
 NODE_ENV=production
-DATABASE_URL=postgresql://user:pass@host:5432/dbname
+DATABASE_URL=file:./data/prod.db
 JWT_SECRET=super-secure-secret-key
-REDIS_URL=redis://user:pass@host:6379
-CORS_ORIGIN=https://yourdomain.com
+FRONTEND_URL=http://localhost
 ```
 
-### 10.3 CI/CD流程
+### 9.3 CI/CD流程
 
 #### GitHub Actions配置
 ```yaml
@@ -1343,9 +1127,9 @@ jobs:
           railway-token: ${{ secrets.RAILWAY_TOKEN }}
 ```
 
-## 11. 监控与维护
+## 10. 监控与维护
 
-### 11.1 性能监控
+### 10.1 性能监控
 
 #### 前端监控
 ```typescript
@@ -1387,7 +1171,7 @@ const responseTimeMiddleware = (req: Request, res: Response, next: NextFunction)
 }
 
 // 健康检查端点
-app.get('/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -1397,7 +1181,7 @@ app.get('/health', (req, res) => {
 })
 ```
 
-### 11.2 日志管理
+### 10.2 日志管理
 
 #### 结构化日志
 ```typescript
@@ -1427,9 +1211,9 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
 }
 ```
 
-## 12. 扩展规划
+## 11. 扩展规划
 
-### 12.1 功能扩展
+### 11.1 功能扩展
 
 #### 短期规划（1-3个月）
 - **任务提醒功能**：邮件/浏览器通知
@@ -1449,7 +1233,7 @@ const requestLogger = (req: Request, res: Response, next: NextFunction) => {
 - **第三方集成**：日历、邮件等系统集成
 - **企业版功能**：权限管理、审批流程
 
-### 12.2 技术升级
+### 11.2 技术升级
 
 #### 架构演进
 ```
@@ -1464,9 +1248,9 @@ SQLite  → PostgreSQL → 分布式数据库
 - **数据库**：PostgreSQL、Redis、Elasticsearch
 - **部署**：Docker、Kubernetes、Serverless
 
-## 13. 总结
+## 12. 总结
 
-### 13.1 架构优势
+### 12.1 架构优势
 
 1. **技术先进性**：采用现代化技术栈，保证系统的先进性和可维护性
 2. **扩展性强**：模块化设计，支持功能和性能的横向扩展
@@ -1474,13 +1258,13 @@ SQLite  → PostgreSQL → 分布式数据库
 4. **性能优异**：多级缓存、懒加载、虚拟化等优化策略
 5. **安全可靠**：完善的认证授权、数据验证、错误处理机制
 
-### 13.2 最佳实践
+### 12.2 最佳实践
 
 1. **代码质量**：TypeScript类型安全、ESLint代码检查、单元测试覆盖
 2. **开发效率**：热更新、自动化部署、组件化开发
 3. **运维友好**：结构化日志、健康检查、性能监控
 4. **文档完善**：API文档、架构文档、使用说明
 
-### 13.3 持续改进
+### 12.3 持续改进
 
-本架构设计遵循敏捷开发原则，支持快速迭代和持续改进。通过用户反馈、性能监控、技术调研等方式，不断优化系统架构和用户体验，确保系统始终保持竞争力和先进性。
+本架构设计遵循敏捷开发原则，支持快速迭代和持续改进。通过用户反馈、性能监控、技术调研等方式，不断优化系统架构和用户体验，确保系统始终保持竞争力和先进性.

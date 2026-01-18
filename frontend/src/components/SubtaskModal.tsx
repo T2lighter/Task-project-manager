@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Task } from '../types';
 import Modal from './Modal';
 import RichTextEditor from './RichTextEditor';
-import { TASK_SOURCE_OPTIONS } from '../constants';
+import { TASK_SOURCE_OPTIONS, TASK_TYPE_OPTIONS } from '../constants';
 
 interface SubtaskModalProps {
   isOpen: boolean;
@@ -30,6 +30,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
     title: '',
     description: '',
     status: 'pending' as Task['status'],
+    type: (parentTask.type || 'normal') as Task['type'],
     urgency: parentTask.urgency, // 继承父任务的紧急性
     importance: parentTask.importance, // 继承父任务的重要性
     source: parentTask.source || '' as Task['source'] | '', // 继承父任务的来源
@@ -53,6 +54,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
     
     onCreateSubtask(parentTask.id, {
       ...formData,
+      type: formData.type || 'normal',
       source: formData.source || undefined, // 空字符串转为 undefined
       dueDate: formData.dueDate ? new Date(formData.dueDate) : undefined,
       createdAt: new Date()
@@ -63,6 +65,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
       title: '',
       description: '',
       status: 'pending' as Task['status'],
+      type: (parentTask.type || 'normal') as Task['type'],
       urgency: parentTask.urgency,
       importance: parentTask.importance,
       source: parentTask.source || '',
@@ -80,6 +83,7 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
       title: '',
       description: '',
       status: 'pending' as Task['status'],
+      type: (parentTask.type || 'normal') as Task['type'],
       urgency: parentTask.urgency,
       importance: parentTask.importance,
       source: parentTask.source || '',
@@ -140,11 +144,33 @@ const SubtaskModal: React.FC<SubtaskModalProps> = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="pending">待办</option>
-              <option value="in-progress">进行中</option>
+              <option value="in-progress">处理中</option>
+              <option value="blocked">阻塞</option>
               <option value="completed">已完成</option>
             </select>
           </div>
 
+          <div>
+            <label htmlFor="subtask-type" className="block text-sm font-medium text-gray-700 mb-1">
+              任务分类
+            </label>
+            <select
+              id="subtask-type"
+              name="type"
+              value={formData.type || 'normal'}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {TASK_TYPE_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label htmlFor="subtask-source" className="block text-sm font-medium text-gray-700 mb-1">
               任务来源

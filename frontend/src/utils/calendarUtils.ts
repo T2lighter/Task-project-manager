@@ -24,8 +24,9 @@ const PRIORITY_WEIGHTS = {
 
 // 任务状态权重常量
 const STATUS_WEIGHTS = {
-  IN_PROGRESS: 3,
-  PENDING: 2,
+  IN_PROGRESS: 4,
+  PENDING: 3,
+  BLOCKED: 2,
   COMPLETED: 1
 } as const;
 
@@ -74,7 +75,8 @@ const getTaskStatusWeight = (task: Task): number => {
   switch (task.status) {
     case 'in-progress': return STATUS_WEIGHTS.IN_PROGRESS;
     case 'pending': return STATUS_WEIGHTS.PENDING;
-    default: return STATUS_WEIGHTS.COMPLETED;
+    case 'blocked': return STATUS_WEIGHTS.BLOCKED;
+    default: return STATUS_WEIGHTS.PENDING;
   }
 };
 
@@ -93,7 +95,7 @@ export const compareTasksByPriority = (a: Task, b: Task): number => {
   const statusWeightB = getTaskStatusWeight(b);
   
   if (statusWeightA !== statusWeightB) {
-    return statusWeightB - statusWeightA; // 降序：进行中 > 待办 > 已完成
+    return statusWeightB - statusWeightA; // 降序：处理中 > 待办 > 已完成
   }
   
   // 最后按创建时间排序

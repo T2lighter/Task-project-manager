@@ -3,6 +3,21 @@ import { Task } from '../types';
 import api from '../services/api';
 import { createSubtask, getSubtasks, getMainTasks } from '../services/subtaskService';
 
+const normalizeTaskStatus = (status: unknown): Task['status'] => {
+  if (status === 'pending' || status === 'in-progress' || status === 'blocked' || status === 'completed') {
+    return status;
+  }
+  return 'pending';
+};
+
+const normalizeTask = (task: Task): Task => {
+  return {
+    ...task,
+    status: normalizeTaskStatus((task as any).status),
+    subtasks: task.subtasks ? task.subtasks.map(normalizeTask) : task.subtasks
+  };
+};
+
 interface TaskState {
   tasks: Task[];
   loading: boolean;
@@ -41,6 +56,7 @@ export const useTaskStore = create<TaskState>((set) => ({
       
       // 为每个任务添加标签信息
       const tasksWithLabels = response.data.map((task: Task) => {
+        const normalizedTask = normalizeTask(task);
         const labelIds = taskLabelsMapping[task.id] || [];
         const taskLabels = labelIds.map((labelId: number) => {
           const label = storedLabels.find((l: any) => l.id === labelId);
@@ -53,7 +69,7 @@ export const useTaskStore = create<TaskState>((set) => ({
         }).filter(Boolean);
         
         return {
-          ...task,
+          ...normalizedTask,
           labels: taskLabels
         };
       });
@@ -71,7 +87,7 @@ export const useTaskStore = create<TaskState>((set) => ({
       set({ loading: true, error: null });
       const response = await api.post('/tasks', task);
       set((state) => ({ 
-        tasks: [...state.tasks, response.data], 
+        tasks: [...state.tasks, normalizeTask(response.data)], 
         loading: false 
       }));
     } catch (error) {
@@ -88,29 +104,31 @@ export const useTaskStore = create<TaskState>((set) => ({
       
       // 新的响应格式: { task: updatedTask, parentTask: updatedParentTask | null }
       const { task: updatedTask, parentTask: updatedParentTask } = response.data;
+      const normalizedUpdatedTask = normalizeTask(updatedTask);
+      const normalizedUpdatedParentTask = updatedParentTask ? normalizeTask(updatedParentTask) : null;
       
       set((state) => {
         let updatedTasks = state.tasks.map((t) => {
           // 如果是被更新的任务本身（主任务或子任务）
           if (t.id === taskId) {
-            return updatedTask;
+            return normalizedUpdatedTask;
           }
           
           // 如果父任务也被更新了，更新父任务
-          if (updatedParentTask && t.id === updatedParentTask.id) {
-            return updatedParentTask;
+          if (normalizedUpdatedParentTask && t.id === normalizedUpdatedParentTask.id) {
+            return normalizedUpdatedParentTask;
           }
           
           // 如果是子任务，需要在父任务的subtasks数组中更新
           if (t.subtasks && t.subtasks.length > 0) {
             const updatedSubtasks = t.subtasks.map((subtask) => 
-              subtask.id === taskId ? updatedTask : subtask
+              subtask.id === taskId ? normalizedUpdatedTask : subtask
             );
             // 检查是否有子任务被更新
             if (updatedSubtasks.some((subtask, index) => subtask !== t.subtasks![index])) {
               // 如果这个父任务也被更新了状态，使用更新后的状态
-              if (updatedParentTask && t.id === updatedParentTask.id) {
-                return { ...updatedParentTask, subtasks: updatedSubtasks };
+              if (normalizedUpdatedParentTask && t.id === normalizedUpdatedParentTask.id) {
+                return { ...normalizedUpdatedParentTask, subtasks: updatedSubtasks };
               }
               return { ...t, subtasks: updatedSubtasks };
             }
@@ -178,7 +196,7 @@ export const useTaskStore = create<TaskState>((set) => ({
       
       // 将复制的任务添加到任务列表中
       set((state) => ({ 
-        tasks: [...state.tasks, response.data],
+        tasks: [...state.tasks, normalizeTask(response.data)],
         loading: false
       }));
     } catch (error) {
@@ -194,21 +212,23 @@ export const useTaskStore = create<TaskState>((set) => ({
       set({ loading: true, error: null });
       const result = await createSubtask(parentTaskId, subtaskData);
       const { subtask: newSubtask, parentTask: updatedParentTask } = result;
+      const normalizedNewSubtask = normalizeTask(newSubtask);
+      const normalizedUpdatedParentTask = updatedParentTask ? normalizeTask(updatedParentTask) : null;
       
       // 更新本地状态：将子任务添加到父任务的subtasks数组中，并更新父任务状态
       set((state) => ({
         tasks: state.tasks.map((task) => {
           if (task.id === parentTaskId) {
             // 如果父任务状态也被更新了，使用更新后的父任务
-            if (updatedParentTask) {
+            if (normalizedUpdatedParentTask) {
               return {
-                ...updatedParentTask,
-                subtasks: [...(updatedParentTask.subtasks || []), newSubtask]
+                ...normalizedUpdatedParentTask,
+                subtasks: [...(normalizedUpdatedParentTask.subtasks || []), normalizedNewSubtask]
               };
             }
             return {
               ...task,
-              subtasks: [...(task.subtasks || []), newSubtask]
+              subtasks: [...(task.subtasks || []), normalizedNewSubtask]
             };
           }
           return task;
@@ -236,7 +256,7 @@ export const useTaskStore = create<TaskState>((set) => ({
     try {
       set({ loading: true, error: null });
       const mainTasks = await getMainTasks();
-      set({ tasks: mainTasks, loading: false });
+      set({ tasks: mainTasks.map(normalizeTask), loading: false });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '获取主任务失败';
       set({ error: errorMessage, loading: false });
