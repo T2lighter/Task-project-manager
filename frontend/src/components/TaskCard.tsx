@@ -55,6 +55,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
       return;
     }
     
+    // 阻止事件冒泡，防止嵌套任务（如子任务）拖拽时触发父任务的拖拽事件
+    e.stopPropagation();
+    
     try {
       const taskData = JSON.stringify(task);
       e.dataTransfer.setData('text/plain', taskData);

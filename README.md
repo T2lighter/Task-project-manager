@@ -201,17 +201,19 @@
 │   │   │   └── ProjectDetailPage.tsx # 项目详情页 🆕
 │   │   ├── store/            # 状态管理
 │   │   │   ├── authStore.ts          # 认证状态
+│   │   │   ├── labelStore.ts         # 标签/本地存储
+│   │   │   ├── okrStore.ts           # OKR状态 🆕
 │   │   │   ├── taskStore.ts          # 任务状态
 │   │   │   ├── statsStore.ts         # 统计状态
 │   │   │   └── projectStore.ts       # 项目状态 🆕
 │   │   ├── services/         # API服务
 │   │   │   ├── api.ts                # 基础API配置
-│   │   │   ├── authService.ts        # 认证服务
-│   │   │   ├── taskService.ts        # 任务服务
-│   │   │   ├── statsService.ts       # 统计服务
-│   │   │   ├── projectService.ts     # 项目服务 🆕
+│   │   │   ├── calendarService.ts    # 日程服务
+│   │   │   ├── okrService.ts         # OKR服务 🆕
 │   │   │   ├── projectNoteService.ts # 项目记录服务 🆕
-│   │   │   └── okrService.ts         # OKR服务 🆕
+│   │   │   ├── statsService.ts       # 统计服务
+│   │   │   ├── subtaskService.ts     # 子任务服务 🆕
+│   │   │   └── uploadService.ts      # 上传服务 🆕
 │   │   ├── utils/            # 工具函数
 │   │   │   ├── taskUtils.ts          # 任务工具函数
 │   │   │   └── calendarUtils.ts      # 日历工具函数
@@ -245,7 +247,8 @@
     │   │   ├── statsRoutes.ts        # 统计路由
     │   │   ├── projectRoutes.ts      # 项目路由 🆕
     │   │   ├── projectNoteRoutes.ts  # 项目记录路由 🆕
-    │   │   └── okrRoutes.ts          # OKR路由 🆕
+    │   │   ├── okrRoutes.ts          # OKR路由 🆕
+    │   │   └── uploadRoutes.ts       # 文件上传路由 🆕
     │   ├── middleware/       # 中间件
     │   │   └── auth.ts               # 认证中间件
     │   ├── utils/            # 工具函数
@@ -253,7 +256,7 @@
     ├── prisma/               # 数据库配置
     │   ├── schema.prisma             # 数据库模式
     │   └── migrations/               # 数据库迁移
-    └── .env                  # 环境变量
+    └── .env                  # 环境变量（本地自建）
 ```
 
 ##  项目打包和部署
@@ -262,13 +265,13 @@
 ```bash
 # 1. 克隆项目
 git clone <repository-url>
-cd task-manager
+cd <repo-folder>
 
 # 2. 一键构建
 node build.js
 
 # 3. Docker部署（推荐）
-docker-compose up -d
+docker-compose up -d --build
 
 # 4. 或使用部署脚本
 ./scripts/deploy.sh production
@@ -283,12 +286,14 @@ docker-compose up -d
 - 性能优化和监控
 
 ### 部署文件说明
-- `Dockerfile` - Docker镜像构建文件
+- `backend/Dockerfile` - 后端 Docker 镜像构建文件
+- `frontend/Dockerfile` - 前端 Docker 镜像构建文件
 - `docker-compose.yml` - Docker编排配置
 - `frontend/nginx.conf` - 前端Nginx配置文件
-- `.env.example` - 环境变量示例
 - `build.js` - 一键构建脚本
 - `scripts/deploy.sh` - 自动化部署脚本
+
+说明：仓库当前未提供 `.env.example`。如需使用 `docker-compose.yml` 或 `scripts/deploy.sh`，请自行创建根目录 `.env`（示例见下方“环境配置”）。
 
 ## 🚀 快速开始
 
@@ -309,7 +314,7 @@ docker-compose up -d
 #### 1. 克隆项目
 ```bash
 git clone <repository-url>
-cd task-manager
+cd <repo-folder>
 ```
 
 #### 2. 后端设置
@@ -319,7 +324,7 @@ npm install
 
 # 配置环境变量（本地开发）
 # 在 backend/ 目录创建 backend/.env（此文件通常不提交到仓库）
-# 可参考根目录的 .env.example，并至少设置 JWT_SECRET / DATABASE_URL / FRONTEND_URL / PORT
+# 至少设置 JWT_SECRET / DATABASE_URL（PORT / FRONTEND_URL 可选）
 
 # 初始化数据库
 npx prisma generate
@@ -350,12 +355,25 @@ npm run dev
 DATABASE_URL="file:./dev.db"
 
 # JWT配置
-JWT_SECRET="your-super-secret-jwt-key"
+JWT_SECRET="your-super-secret-jwt-key"  # 必填
 
 # 服务器配置
 PORT=5000
 FRONTEND_URL="http://localhost:5173"
 NODE_ENV=development
+```
+
+### 根目录环境变量（可选：.env，用于 Docker / 部署脚本）
+```env
+# docker-compose.yml / scripts/deploy.sh 会读取根目录 .env
+JWT_SECRET=your-super-secure-jwt-secret-key
+
+# 可选：覆盖 docker-compose 端口映射
+BACKEND_PORT=5000
+FRONTEND_PORT=80
+
+# 可选：后端 CORS 允许的前端地址
+FRONTEND_URL=http://localhost
 ```
 
 ### 前端环境变量（可选）
@@ -364,7 +382,7 @@ NODE_ENV=development
 - 本地开发由 `frontend/vite.config.ts` 将 `/api` 代理到 `http://localhost:5000`
 - Docker/生产环境由 `frontend/nginx.conf` 将 `/api` 反向代理到后端容器
 
-说明：当前前端代码未读取 `VITE_API_URL` 变量（`frontend/src/services/api.ts` 的 `baseURL` 固定为 `/api`）。
+说明：当前前端代码未读取 `VITE_API_URL` 变量（`frontend/src/services/api.ts` 的 `baseURL` 固定为 `/api`）。因此 `docker-compose.yml` 中的 `VITE_API_URL` 目前不会影响前端请求地址。
 
 ## 🔌 API接口文档
 
@@ -564,62 +582,36 @@ NODE_ENV=development
 
 ## 🆕 最新更新 (2026年1月)
 
-### 重大功能更新
-1. **完整的项目管理系统**
-   - 项目CRUD操作和状态管理
-   - 任务关联和批量操作
-   - 项目进度跟踪和搜索功能
+以下更新来自近期 Git 提交记录（功能/修复/工程化）：
 
-2. **项目记录与总结功能**
-   - 专业的Markdown编辑器，支持实时预览
-   - 6种记录类型和智能模板系统
-   - Zhihu风格的展示和编辑体验
+### 功能新增
+1. **任务完成时间统计（基于状态变更时间）**
+   - 统计/热力图等在任务状态为 `completed` 时，使用 `updatedAt` 作为完成时间进行计算
+   - 数据库迁移中已预留 `completedAt` 列，便于后续接入更精确的完成时间记录
 
-3. **甘特图可视化**
-   - 精确的时间轴展示和智能时间计算
-   - 状态和优先级颜色编码
-   - 中文化界面和视图切换功能
+2. **任务描述富文本编辑器**
+   - 任务描述支持基础格式（如粗体、斜体、列表等）
+   - 支持直接粘贴图片：自动压缩并上传到后端 `/api/upload/image`
 
-4. **OKR目标管理系统**
-   - 完整的目标和关键结果管理
-   - 四个平级组件：关键结果、资源需求、执行计划、行动检查
-   - 进度跟踪和状态管理
+3. **子任务级联删除**
+   - 数据库外键 `ON DELETE CASCADE`：删除父任务会自动删除子任务
+   - 修复删除接口返回值兼容性问题（避免访问不存在的 `count` 字段）
 
-5. **子任务系统**
-   - 任务层次化管理和智能显示规则
-   - 进度统计和防止过度嵌套
-   - 完成状态优化显示
+### 体验与工程化
+- **个人主页图表 UI 优化**
+  - 任务分布相关组件采用更扁平的视觉风格，减少 hover 抖动
 
-6. **项目统计功能**
-   - 项目维度统计和任务分布图表
-   - 集成到个人主页仪表盘
-   - 实时进度跟踪
+- **Windows 一键启动优化**
+  - `start.bat` 后台静默启动前后端服务（不弹出额外命令窗口）
 
-7. **UI/UX全面优化**
-   - 统一标签颜色系统和简洁设计理念
-   - 移除冗余图标，优化确认对话框
-   - 提升整体一致性和用户体验
+- **CI/构建修复**
+  - 补充/调整前端 ESLint 配置，修复 CI 构建与 TypeScript 编译问题
+  - 清理多余的 `eslint-disable` 指令
 
-8. **性能和代码优化**
-   - 清理调试日志和优化组件性能
-   - 改进错误处理和状态管理
-   - 增强类型安全和代码质量
-
-### 技术改进
-- 新增多个数据模型和API端点
-- 优化数据库结构和查询性能
-- 改进状态管理和错误处理机制
-- 增强类型安全和代码可维护性
-- 完善的错误处理和用户反馈
-
-### 架构优化
-- 清理和优化后端服务代码
-- 优化个性化标签系统（本地存储），简化交互
-- 改进前端状态管理和组件结构
-- 优化数据库查询和性能
-- 完善的文档和架构说明
-
-项目现已达到**企业级生产就绪**状态，具备专业级任务和项目管理应用的所有核心功能，代码质量高，架构清晰，性能优异。
+### 资源整理
+- **介绍截图归档**
+  - 介绍截图移动到 `introduction_images/`
+  - 更完整的截图与功能介绍见 [PROJECT_INTRODUCTION.md](./PROJECT_INTRODUCTION.md)
 
 ## 🤝 贡献指南
 
@@ -638,8 +630,8 @@ NODE_ENV=development
 ## 📞 联系方式
 
 如有问题或建议，欢迎通过以下方式联系：
-- 提交 [Issue](https://github.com/your-repo/issues)
-- 发送邮件至：your-email@example.com
+- 提交 [Issue](https://github.com/<owner>/<repo>/issues)
+- 发送邮件至：<your-email@example.com>
 
 ---
 
