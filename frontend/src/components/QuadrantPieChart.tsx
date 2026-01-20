@@ -1,53 +1,55 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { QuadrantStats } from '../types';
+import { BASE_COLORS } from '../utils/colorUtils';
 
 interface QuadrantPieChartProps {
   stats: QuadrantStats;
   onQuadrantClick?: (quadrant: string) => void;
 }
 
+// 使用统一颜色配置
 const COLORS = {
-  urgentImportant: '#DC2626', // red-600
-  importantNotUrgent: '#059669', // emerald-600
-  urgentNotImportant: '#D97706', // amber-600
-  neitherUrgentNorImportant: '#6B7280', // gray-500
+  urgentImportant: BASE_COLORS.RED,           // 红色 - 与Quadrant组件一致
+  importantNotUrgent: BASE_COLORS.BLUE,       // 蓝色 - 与Quadrant组件一致
+  urgentNotImportant: BASE_COLORS.YELLOW,     // 黄色 - 与Quadrant组件一致
+  neitherUrgentNorImportant: BASE_COLORS.GRAY, // 灰色 - 与Quadrant组件一致
 };
 
 const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantClick }) => {
   const [, setActiveIndex] = React.useState<number | null>(null);
   const total = stats.urgentImportant + stats.importantNotUrgent + stats.urgentNotImportant + stats.neitherUrgentNorImportant;
-  
+
   // 按照用户要求的顺序排列：紧急且重要 → 重要但不紧急 → 紧急但不重要 → 既不紧急也不重要
   const data = [
-    { 
-      name: '紧急且重要', 
+    {
+      name: '紧急且重要',
       shortName: '紧急重要',
-      value: stats.urgentImportant, 
+      value: stats.urgentImportant,
       color: COLORS.urgentImportant,
       key: 'urgentImportant',
       description: '需要立即处理'
     },
-    { 
-      name: '重要但不紧急', 
+    {
+      name: '重要但不紧急',
       shortName: '重要不紧急',
-      value: stats.importantNotUrgent, 
+      value: stats.importantNotUrgent,
       color: COLORS.importantNotUrgent,
       key: 'importantNotUrgent',
       description: '计划安排处理'
     },
-    { 
-      name: '紧急但不重要', 
+    {
+      name: '紧急但不重要',
       shortName: '紧急不重要',
-      value: stats.urgentNotImportant, 
+      value: stats.urgentNotImportant,
       color: COLORS.urgentNotImportant,
       key: 'urgentNotImportant',
       description: '可以委托他人'
     },
-    { 
-      name: '既不紧急也不重要', 
+    {
+      name: '既不紧急也不重要',
       shortName: '不紧急不重要',
-      value: stats.neitherUrgentNorImportant, 
+      value: stats.neitherUrgentNorImportant,
       color: COLORS.neitherUrgentNorImportant,
       key: 'neitherUrgentNorImportant',
       description: '考虑是否必要'
@@ -94,11 +96,11 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantCl
         <h3 className="text-base font-semibold text-gray-800">四象限分布</h3>
         <span className="text-sm text-gray-600">{total} 总任务</span>
       </div>
-      
+
       <div className="flex-1 flex items-center">
         <div className="flex-1 relative">
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
               <Pie
                 data={data}
                 cx="50%"
@@ -113,10 +115,10 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantCl
                 onMouseLeave={() => setActiveIndex(null)}
               >
                 {data.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.color} 
-                    stroke="white" 
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.color}
+                    stroke="white"
                     strokeWidth={1}
                   />
                 ))}
@@ -132,42 +134,40 @@ const QuadrantPieChart: React.FC<QuadrantPieChartProps> = ({ stats, onQuadrantCl
             </div>
           </div>
         </div>
-        
+
         {/* 右侧图例 */}
         <div className="ml-9 space-y-4 w-32">
           {data.map((item, index) => {
             const percentage = ((item.value / total) * 100).toFixed(0);
             return (
-              <div 
-                key={item.key} 
+              <div
+                key={item.key}
                 className="cursor-pointer"
                 onMouseEnter={() => setActiveIndex(index)}
                 onMouseLeave={() => setActiveIndex(null)}
                 onClick={() => onQuadrantClick && onQuadrantClick(item.key)}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <div className={`font-semibold text-sm ${
-                    item.key === 'urgentImportant' ? 'text-red-600' :
-                    item.key === 'importantNotUrgent' ? 'text-emerald-600' :
-                    item.key === 'urgentNotImportant' ? 'text-amber-600' :
-                    'text-gray-600'
-                  }`}>
+                  <div className={`font-semibold text-sm ${item.key === 'urgentImportant' ? 'text-red-600' :
+                    item.key === 'importantNotUrgent' ? 'text-blue-600' :
+                      item.key === 'urgentNotImportant' ? 'text-yellow-600' :
+                        'text-gray-600'
+                    }`}>
                     {item.shortName}({item.value})
                   </div>
-                  <div className={`text-sm font-semibold ${
-                    item.key === 'urgentImportant' ? 'text-red-500' :
-                    item.key === 'importantNotUrgent' ? 'text-emerald-500' :
-                    item.key === 'urgentNotImportant' ? 'text-amber-500' :
-                    'text-gray-500'
-                  }`}>
+                  <div className={`text-sm font-semibold ${item.key === 'urgentImportant' ? 'text-red-500' :
+                    item.key === 'importantNotUrgent' ? 'text-blue-500' :
+                      item.key === 'urgentNotImportant' ? 'text-yellow-500' :
+                        'text-gray-500'
+                    }`}>
                     {percentage}%
                   </div>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-0.5">
-                  <div 
+                  <div
                     className="h-0.5 rounded-full"
-                    style={{ 
-                      width: `${percentage}%`, 
+                    style={{
+                      width: `${percentage}%`,
                       backgroundColor: item.color
                     }}
                   ></div>

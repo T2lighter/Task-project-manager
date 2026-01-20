@@ -12,7 +12,6 @@ const COLORS = {
   inProgress: '#3B82F6', // blue-500
   blocked: '#A855F7', // purple-500
   pending: '#F59E0B', // amber-500
-  overdue: '#EF4444', // red-500
 };
 
 const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatusClick }) => {
@@ -23,7 +22,6 @@ const TaskStatusPieChart: React.FC<TaskStatusPieChartProps> = ({ stats, onStatus
     { name: '处理中', value: stats.inProgress, color: COLORS.inProgress, key: 'in-progress' },
     { name: '阻塞', value: stats.blocked, color: COLORS.blocked, key: 'blocked' },
     { name: '待办', value: stats.pending, color: COLORS.pending, key: 'pending' },
-    { name: '逾期', value: stats.overdue, color: COLORS.overdue, key: 'overdue' },
   ].filter(item => item.value > 0);
 
   const CustomTooltip = ({ active, payload }: any) => {

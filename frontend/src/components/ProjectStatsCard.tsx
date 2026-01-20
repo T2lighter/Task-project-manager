@@ -8,9 +8,9 @@ interface ProjectStatsCardProps {
   selectedStatus?: string; // 新增：当前选中的状态
 }
 
-const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({ 
-  stats, 
-  onProjectsClick, 
+const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({
+  stats,
+  onProjectsClick,
   onStatusFilter,
   selectedStatus = 'active' // 默认选中处理中
 }) => {
@@ -70,17 +70,16 @@ const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({
         ].filter(item => item.value > 0).map(item => {
           const config = getStatusConfig(item.key);
           const isSelected = selectedStatus === item.key;
-          
+
           return (
             <div key={item.key} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onStatusFilter?.(item.key)}
-                  className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 transition-all duration-200 ${
-                    isSelected 
-                      ? `${config.color} ring-2 ring-offset-1 ring-blue-400 shadow-md transform scale-105` 
+                  className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 transition-all duration-200 ${isSelected
+                      ? `${config.color} ring-2 ring-offset-1 ring-blue-400 shadow-md transform scale-105`
                       : `${config.color} hover:shadow-md hover:scale-105 cursor-pointer`
-                  }`}
+                    }`}
                   title={`点击筛选${config.text}项目`}
                 >
                   <span>{config.icon}</span>
@@ -93,13 +92,6 @@ const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({
         })}
       </div>
 
-      {/* 筛选提示 */}
-      {onStatusFilter && (
-        <div className="mt-4 text-xs text-gray-500 text-center">
-          点击状态标签筛选项目任务分布
-        </div>
-      )}
-
       {/* 进度条 */}
       {stats.total > 0 && (
         <div className="mt-4">
@@ -108,7 +100,7 @@ const ProjectStatsCard: React.FC<ProjectStatsCardProps> = ({
             <span>{stats.completed}/{stats.total}</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
+            <div
               className="bg-green-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${stats.completionRate * 100}%` }}
             ></div>
